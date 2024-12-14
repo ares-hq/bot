@@ -14,8 +14,33 @@ def handle_user_messages(msg) ->str:
             totalString += FTCScoutBot(numbers, year=year)
             return totalString
         return 'Please enter a team number'
+    elif extractMatchNumbers(message):
+        year = extractYear(message)
+        match_numbers, includeinfo = extractMatchNumbers(message)
+        if match_numbers:
+            total_string = f'**The following was found for this team matchup in season {year}-{year+1}:** \n\n'  
+            total_string += FTCScoutBotMatch(match_numbers, includeinfo, year=year)
+            return total_string
+        return "Please provide a valid match format, e.g., 'Match 123 456 789 101'."
     elif 'help' == message:
-        return f"-Use the format: 'team: XXX' to get team data. \n-Year is default to current season. To retrieve data from past year use format: 'Team XXX Year XXXX' to get team data for that year."
+        
+         newmess = (f"- Use the format: 'team: XXX' to get team data. \n" 
+                    f"- Year is default to current season. To retrieve data from past year use format: 'Team XXX Year XXXX' to get team data for that year.\n"
+                    f"- To use match feature, input either one or two alliance numbers. Use '-info' at the message to see specific team data. 'Match XXX XXX XXX XXX -info'"
+                    )
+         return newmess
+            
+    
+def extractMatchNumbers(msg: str) -> list:
+    message = msg.lower()
+    
+    if 'match' in message:
+        match = re.search(r'match(?:\s+\d+){4}|(?:\s+\d+){2}', message)
+        if match:
+            numbers = re.findall(r'\d+', match.group())
+            if message.strip().endswith("-info"):
+                return numbers, True
+            return numbers, False
     
 def extractTeamNumbers(msg: str) -> list:
     message = msg.lower()
@@ -42,7 +67,7 @@ async def processMessage(message):
         print(error)
 
 def runBot():
-    discord_token = 'MTIxNDY3Nzk5NzYxNzk0MjYyOA.GdgxVI.MSen_KE5fEf49q5ZKONgK20dBjyhug_HCEiVa4'
+    discord_token = 'MTIxNDY3Nzk5NzYxNzk0MjYyOA.GG2XhR.LMVT1a1m6TtHKLfhqnkzen_bLhaU_gNW6h681Y'
     intents = discord.Intents.default()
     intents.typing = False
     intents.message_content = True
@@ -185,6 +210,119 @@ def FTCScoutBot(teamNumber, year=findYear()):
         else:
             result_string = f"Error processing API response: {str(e)}"
 
+    return result_string
+
+def FTCScoutBotMatch(teamNumbers, includeinfo, year=findYear()):
+    team_numbers = list(map(int, teamNumbers)) if teamNumbers else []
+    url = "https://api.ftcscout.org/graphql"
+    headers = {"Content-Type": "application/json"}
+    
+    alliance_data1 = {"auto": 0, "teleop": 0, "endgame": 0, "total": 0}
+    alliance_data2 = {"auto": 0, "teleop": 0, "endgame": 0, "total": 0}
+
+    result_string = ""
+    countForAlliance = False
+    if len(team_numbers) == 2:
+        countForAlliance = True
+    alliance1 = 0
+    for team_number in team_numbers:
+        graphql_query = f"""
+        query GetTeamByNumber($teamNumber: Int!) {{
+            teamByNumber(number: $teamNumber) {{
+                name
+                quickStats(season: {year}) {{
+                    auto {{
+                        value
+                    }}
+                    eg {{
+                        value
+                    }}
+                    dc {{
+                        value
+                    }}
+                    tot {{
+                        value
+                    }}
+                }}
+            }}
+        }}
+        """
+        variables = {
+            "teamNumber": team_number
+        }
+
+        headers = {
+            "Content-Type": "application/json"
+        }
+
+        response = requests.post(url, json={"query": graphql_query, "variables": variables}, headers=headers)
+
+        try:
+            json_data = response.json()
+            if 'data' in json_data:
+                team_data = json_data['data']['teamByNumber']
+                team_name = team_data['name']
+                auto_value = team_data['quickStats']['auto']['value']
+                eg_value = team_data['quickStats']['eg']['value']
+                dc_value = team_data['quickStats']['dc']['value']
+                tot_value = team_data['quickStats']['tot']['value']
+                
+                if alliance1 < 2:
+                    alliance_data1['auto'] += auto_value
+                    alliance_data1['teleop'] += dc_value
+                    alliance_data1['endgame'] += eg_value
+                    alliance_data1['total'] += tot_value
+                else:
+                    alliance_data2['auto'] += auto_value
+                    alliance_data2['teleop'] += dc_value
+                    alliance_data2['endgame'] += eg_value
+                    alliance_data2['total'] += tot_value
+                alliance1 += 1
+                if includeinfo:
+                    result_string += (
+                        f"\n**Team {team_number} ({team_name})**\n"
+                        f"- Auto OPR: {round(auto_value, 2)}\n"
+                        f"- TeleOp OPR: {round(dc_value, 2)}\n"
+                        f"- Endgame OPR: {round(eg_value, 2)}\n"
+                        f"- Total OPR: {round(tot_value, 2)}\n"
+                    )
+            else:
+                result_string += f"\nTeam {team_number}: No data available for the {year}-{year+1} season.\n"
+        except Exception as e:
+            result_string += f"\nError fetching data for Team {team_number}: {str(e)}\n"
+
+    estimated_final_score = (
+        alliance_data1['auto'] + alliance_data1['teleop'] + alliance_data1['endgame'],
+        alliance_data2['auto'] + alliance_data2['teleop'] + alliance_data2['endgame']
+    )
+
+    if countForAlliance:
+        result_string = (
+        f"**Alliance Summary: Teams {' & '.join(map(str, team_numbers[:2]))}**\n"        
+        f"- Total Auto OPR per Alliance: {round(alliance_data1['auto'], 2)}\n"
+        f"- Total TeleOp OPR: {round(alliance_data1['teleop'], 2)}\n"
+        f"- Total Endgame OPR: {round(alliance_data1['endgame'], 2)}\n"
+        f"- Total OPR: {round(alliance_data1['total'], 2)}\n"
+        f"- Estimated Final Score: {round(estimated_final_score[0], 2)}\n"
+    ) + result_string
+    
+    else:
+        result_string = (
+            # f"**Match Summary: Teams {' & '.join(map(str, team_numbers[:2]))} vs {' & '.join(map(str, team_numbers[2:]))}**\n"        
+            f"**Alliance 1:**\n"
+            f"- Auto OPR: {round(alliance_data1['auto'], 2)}\n"
+            f"- TeleOp OPR: {round(alliance_data1['teleop'], 2)}\n"
+            f"- Endgame OPR: {round(alliance_data1['endgame'], 2)}\n"
+            # f"- Total OPR: {round(alliance_data1['total'], 2)}\n"
+            f"- Estimated score: {round(estimated_final_score[0], 2)}\n"
+            f"**Alliance 2:**\n"
+            f"- Auto OPR: {round(alliance_data1['auto'], 2)}\n"
+            f"- TeleOp OPR: {round(alliance_data1['teleop'], 2)}\n"
+            f"- Endgame OPR: {round(alliance_data1['endgame'], 2)}\n"
+            # f"- Total OPR: {round(alliance_data1['total'], 2)}\n"
+            f"- Estimated score: {round(estimated_final_score[1], 2)}\n"
+            f"\n{'**Alliance 1 estimated to win**' if estimated_final_score[0] > estimated_final_score[1] else '**Alliance 2 estimated to win**'}\n"        
+            ) + result_string
     return result_string
 
 if __name__ =='__main__':
