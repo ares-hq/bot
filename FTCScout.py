@@ -2,6 +2,10 @@ import discord
 import re
 import requests
 from datetime import datetime
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 def handle_user_messages(msg) ->str:
     message = msg.lower()
@@ -67,7 +71,7 @@ async def processMessage(message):
         print(error)
 
 def runBot():
-    discord_token = 'MTIxNDY3Nzk5NzYxNzk0MjYyOA.GG2XhR.LMVT1a1m6TtHKLfhqnkzen_bLhaU_gNW6h681Y'
+    discord_token = os.getenv('API_KEY')
     intents = discord.Intents.default()
     intents.typing = False
     intents.message_content = True
