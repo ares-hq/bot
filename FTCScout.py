@@ -71,7 +71,7 @@ async def processMessage(message):
         print(error)
 
 def runBot():
-    discord_token = os.getenv('API_KEY')
+    discord_token = os.getenv('API_KEY') #env variable
     intents = discord.Intents.default()
     intents.typing = False
     intents.message_content = True
