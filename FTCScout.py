@@ -316,13 +316,12 @@ def FTCScoutBotMatch(teamNumbers, includeinfo, year=findYear()):
             # f"- Total OPR: {round(alliance_data1['total'], 2)}\n"
             f"- Estimated score: {round(estimated_final_score[0], 2)}\n"
             f"**Alliance 2:**\n"
-            f"- Auto OPR: {round(alliance_data1['auto'], 2)}\n"
-            f"- TeleOp OPR: {round(alliance_data1['teleop'], 2)}\n"
-            f"- Endgame OPR: {round(alliance_data1['endgame'], 2)}\n"
-            # f"- Total OPR: {round(alliance_data1['total'], 2)}\n"
+            f"- Auto OPR: {round(alliance_data2['auto'], 2)}\n"
+            f"- TeleOp OPR: {round(alliance_data2['teleop'], 2)}\n"
+            f"- Endgame OPR: {round(alliance_data2['endgame'], 2)}\n"
+            # f"- Total OPR: {round(alliance_data2['total'], 2)}\n"
             f"- Estimated score: {round(estimated_final_score[1], 2)}\n"
-            f"\n{'**Alliance 1 estimated to win**' if estimated_final_score[0] > estimated_final_score[1] else '**Alliance 2 estimated to win**'}\n"        
-            ) + result_string
+            ) + result_string + f"\n{'**Alliance 1 estimated to win**' if estimated_final_score[0] > estimated_final_score[1] else '**Alliance 2 estimated to win**'}\n"
     return result_string
 
 if __name__ =='__main__':
