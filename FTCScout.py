@@ -220,6 +220,7 @@ def FTCScoutBotMatch(teamNumbers, includeinfo, year=findYear()):
     alliance_data1 = {"auto": 0, "teleop": 0, "endgame": 0, "total": 0}
     alliance_data2 = {"auto": 0, "teleop": 0, "endgame": 0, "total": 0}
 
+    team_name_array = []
     result_string = ""
     countForAlliance = False
     if len(team_numbers) == 2:
@@ -261,6 +262,7 @@ def FTCScoutBotMatch(teamNumbers, includeinfo, year=findYear()):
             json_data = response.json()
             if 'data' in json_data:
                 team_data = json_data['data']['teamByNumber']
+                team_name_array += [team_data['name']]
                 team_name = team_data['name']
                 auto_value = team_data['quickStats']['auto']['value']
                 eg_value = team_data['quickStats']['eg']['value']
@@ -298,7 +300,8 @@ def FTCScoutBotMatch(teamNumbers, includeinfo, year=findYear()):
 
     if countForAlliance:
         result_string = (
-        f"**Alliance Summary: Teams {' & '.join(map(str, team_numbers[:2]))}**\n"        
+        f"**Alliance Summary: Teams {' & '.join(map(str, team_numbers[:2]))}**\n"
+        f"{team_name_array[0] + ' & ' + team_name_array[1]}\n"        
         f"- Total Auto OPR per Alliance: {round(alliance_data1['auto'], 2)}\n"
         f"- Total TeleOp OPR: {round(alliance_data1['teleop'], 2)}\n"
         f"- Total Endgame OPR: {round(alliance_data1['endgame'], 2)}\n"
@@ -309,13 +312,13 @@ def FTCScoutBotMatch(teamNumbers, includeinfo, year=findYear()):
     else:
         result_string = (
             # f"**Match Summary: Teams {' & '.join(map(str, team_numbers[:2]))} vs {' & '.join(map(str, team_numbers[2:]))}**\n"        
-            f"**Alliance 1:**\n"
+            f"**Alliance 1 ({team_name_array[0] + ' & ' + team_name_array[1]}):**\n"
             f"- Auto OPR: {round(alliance_data1['auto'], 2)}\n"
             f"- TeleOp OPR: {round(alliance_data1['teleop'], 2)}\n"
             f"- Endgame OPR: {round(alliance_data1['endgame'], 2)}\n"
             # f"- Total OPR: {round(alliance_data1['total'], 2)}\n"
             f"- Estimated score: {round(estimated_final_score[0], 2)}\n"
-            f"**Alliance 2:**\n"
+            f"**Alliance 2 ({team_name_array[2] + ' & ' + team_name_array[3]}):**\n"
             f"- Auto OPR: {round(alliance_data2['auto'], 2)}\n"
             f"- TeleOp OPR: {round(alliance_data2['teleop'], 2)}\n"
             f"- Endgame OPR: {round(alliance_data2['endgame'], 2)}\n"
