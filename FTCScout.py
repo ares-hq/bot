@@ -4,8 +4,10 @@ import requests
 from datetime import datetime
 from dotenv import load_dotenv
 import os
+from flask import Flask
 
 load_dotenv()
+app = Flask(__name__)
 
 def handle_user_messages(msg) ->str:
     message = msg.lower()
