@@ -9,6 +9,11 @@ from flask import Flask
 load_dotenv()
 app = Flask(__name__)
 
+@app.route("/")
+def home():
+    runBot()
+    return "Hello, FTC Scout!"
+
 def handle_user_messages(msg) ->str:
     message = msg.lower()
     if extractTeamNumbers(message):
