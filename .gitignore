@@ -1,1 +1,5 @@
 .env
+ftcscout/
+.venv/
+.history/
+__pycache__/

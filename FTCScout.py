@@ -2,17 +2,45 @@ import discord
 import re
 import requests
 from datetime import datetime
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import os
-from flask import Flask
+from flask import Flask, render_template_string, jsonify
+import markdown
 
-load_dotenv()
+
+# load_dotenv()
 app = Flask(__name__)
 
 @app.route("/")
 def home():
-    runBot()
+    # runBot()
     return "Hello, FTC Scout!"
+
+# Example = http://127.0.0.1:5000/query/team%2014584
+
+@app.route('/query/<msg>')
+def process(msg):
+    # Get the markdown result
+    markdown_content = handle_user_messages(msg)
+    
+    # Convert markdown to HTML
+    html_content = markdown.markdown(markdown_content)
+    
+    # Replace newline characters with <br> for proper line breaks in HTML
+    html_content = html_content.replace("\n", "<br />")
+    
+    # Render HTML content in a Flask response (using render_template_string for simplicity)
+    return render_template_string("""
+    <html>
+        <head>
+            <title>Team Info</title>
+        </head>
+        <body>
+            <h1>Team Information</h1>
+            <div>{{ content|safe }}</div>
+        </body>
+    </html>
+    """, content=html_content)
 
 def handle_user_messages(msg) ->str:
     message = msg.lower()
@@ -69,11 +97,12 @@ def extractYear(message):
         year = int(year_match.group(1))
     return year
 
-async def processMessage(message):
+def processMessage(message):
     try:
         botfeedback = handle_user_messages(message.content)
         if botfeedback:
-            await message.channel.send(botfeedback)
+            # await message.channel.send(botfeedback)
+            return botfeedback # flask temp debug
     except Exception as error:
         print(error)
 
@@ -87,7 +116,7 @@ def runBot():
 
     @client.event
     async def on_ready():
-        print({client.user}, 'is live')
+        print(f"{client.user.name} ({client.user.id}) is live!")
         await client.change_presence(activity=discord.Game('Christian Sucks!'))
 
     @client.event
@@ -122,40 +151,41 @@ def FTCScoutBot(teamNumber, year=findYear()):
     team_number = int("".join(map(str, teamNumber))) if teamNumber else None
     url = "https://api.ftcscout.org/graphql"
 
-    graphql_query = f"""
-    query GetTeamByNumber($teamNumber: Int!) {{
-        teamByNumber(number: $teamNumber) {{
-            name
-            quickStats(season: {year}) {{
-                auto {{
-                    rank
-                    value
-                }}
-                eg {{
-                    rank
-                    value
-                }}
-                dc {{
-                    rank
-                    value
-                }}
-                tot {{
-                    rank
-                    value
-                }}
-            }}
-            sponsors
-            location {{
-                city
-                country
-            }}
-            updatedAt
-        }}
-    }}
+    graphql_query = """
+        query GetTeamByNumber($teamNumber: Int!, $year: Int!) {
+            teamByNumber(number: $teamNumber) {
+                name
+                quickStats(season: $year) {
+                    auto {
+                        rank
+                        value
+                    }
+                    eg {
+                        rank
+                        value
+                    }
+                    dc {
+                        rank
+                        value
+                    }
+                    tot {
+                        rank
+                        value
+                    }
+                }
+                sponsors
+                location {
+                    city
+                    country
+                }
+                updatedAt
+            }
+        }
     """
 
     variables = {
-        "teamNumber": team_number
+        "teamNumber": team_number,
+        "year": year
     }
 
     headers = {
@@ -339,4 +369,5 @@ def FTCScoutBotMatch(teamNumbers, includeinfo, year=findYear()):
     return result_string
 
 if __name__ =='__main__':
-    runBot()
+    # runBot()
+    app.run(debug=True)
