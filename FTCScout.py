@@ -97,12 +97,12 @@ def extractYear(message):
         year = int(year_match.group(1))
     return year
 
-def processMessage(message):
+async def processMessage(message):
     try:
         botfeedback = handle_user_messages(message.content)
         if botfeedback:
-            # await message.channel.send(botfeedback)
-            return botfeedback # flask temp debug
+            await message.channel.send(botfeedback)
+            # return botfeedback # flask temp debug
     except Exception as error:
         print(error)
 
@@ -121,19 +121,10 @@ def runBot():
 
     @client.event
     async def on_message(message):
-        specific_channel_id = 1214714987638034545 
-        specific_channel_id2 = 1214734647695646754
-        #specific_channel_id = 1214734647695646754  #this is the testing one
-        
-        if message.channel.id == specific_channel_id:
-            if message.author == client.user:
-                return
-            await processMessage(message)
-        
-        if message.channel.id == specific_channel_id2:
-            if message.author == client.user:
-                return
-            await processMessage(message)
+        # Prevent the bot from responding to itself
+        if message.author == client.user:
+            return
+        await processMessage(message)
 
     client.run(discord_token)
 
@@ -369,5 +360,5 @@ def FTCScoutBotMatch(teamNumbers, includeinfo, year=findYear()):
     return result_string
 
 if __name__ =='__main__':
-    # runBot()
+    runBot()
     app.run(debug=True)
