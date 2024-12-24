@@ -7,7 +7,6 @@ import os
 from flask import Flask, render_template_string, jsonify
 import markdown
 
-
 # load_dotenv()
 app = Flask(__name__)
 
