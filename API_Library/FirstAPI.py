@@ -1,6 +1,8 @@
 import requests
 from APIParams import APIParams
 from API_Models.Team import Team
+import os
+from dotenv import load_dotenv
 
 '''
 Example usage(12/23/24):
@@ -13,10 +15,11 @@ class OneCallAPI:
     def __init__(self, params):
         if not isinstance(params, APIParams):
             raise TypeError('Incorrect type')
+        load_dotenv()
         
         self.base_url = "https://ftc-api.firstinspires.org/v2.0/2024/teams"
-        self.username = 'hbono806'
-        self.password = '5DC7537D-9DBB-463E-A11B-AAF25DD10B24'
+        self.username = os.getenv('FIRST_USERNAME')
+        self.password = os.getenv('FIRST_PASS')
         self.params = params
 
     def get_team_data(self):

@@ -2,7 +2,7 @@ import discord
 import re
 import requests
 from datetime import datetime
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 import os
 from flask import Flask, render_template_string, jsonify
 import markdown
