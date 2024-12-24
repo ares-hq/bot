@@ -12,5 +12,6 @@ The APIParams class includes:
 - __init__: Initializes the class with a team number.
 """
 class APIParams:
-    def __init__(self, teamNumber):
+    def __init__(self, teamNumber, apiStringList):
         self.teamNumber = teamNumber
+        self.apiStringList = apiStringList
