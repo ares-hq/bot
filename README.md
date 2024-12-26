@@ -41,8 +41,7 @@ function (/team '<number>'){
         string "World TeleOp OPR"
         string "World End Game OPR"
         string "World Total OPR"
-
-        return: discord-embedded-response
+        return: Discord-Embedded-Message
     }
 ```
 ### `/match`
@@ -54,7 +53,7 @@ function (/match '<team-number-1> <team-number-2>'){
         string "Alliance TeleOp OPR"
         string "Alliance End Game Score"
         string "Alliance Total Score"
-        return: discord-embedded-response
+        return: Discord-Embedded-Message
     }
 ```
 ```js
@@ -74,7 +73,7 @@ function (/match '<team-number-1> <team-number-2> <team-number-3> <team-number-4
         string "Alliance TeleOp OPR"
         string "Alliance End Game Score"
         string "Alliance Total Score"
-        return: discord-embedded-response
+        return: Discord-Embedded-Message
     }
 ```
 ### `/help`
@@ -83,9 +82,8 @@ function (/info){
         string "Bot Information"
         string "Bot Version"
         string "Bot Developers"
-
         string PageTurn("ALL COMMANDS")
-        return: discord-pages
+        return: Discord-Embedded-Pages
     }
 ```
 ### `/favorite`
@@ -93,7 +91,7 @@ function (/info){
 function (/info){
         //Adds Special Server Modifiers
         ChangeBotNickname("Team #### Bot")
-        return: Discord-Confirmation-Message
+        return: Discord-Embedded-Message
     }
 ```
 
