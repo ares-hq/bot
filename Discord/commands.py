@@ -2,10 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from .utils import PaginationView, create_multi_page_embed as create_mpe
-import requests
-import re
 from Response_Handler.HandleMessageResponse import HandleMessageResponse as msg
-
 
 #####################################################
 # Feature Request (API):
@@ -44,7 +41,6 @@ class Commands:
         @app_commands.describe(team_number="Details about the team.")
         async def team(interaction: discord.Interaction, team_number: str = None):
             if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
-                await interaction.response.send_message("This command can only be used in the debug channel.", ephemeral=True)
                 return
             
             try:
@@ -75,10 +71,9 @@ class Commands:
 
     def slash_match(self):
         @self.bot.tree.command(name="match", description="Displays match details.")
-        @app_commands.describe(red_alliance="Red Alliance team numbers (comma-separated).", blue_alliance="Blue Alliance team numbers (comma-separated, optional).")
+        @app_commands.describe(red_alliance="Red Alliance team numbers (space-separated).", blue_alliance="Blue Alliance team numbers (space-separated, optional).")
         async def match(interaction: discord.Interaction, red_alliance: str, blue_alliance: str = None):
             if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
-                await interaction.response.send_message("This command can only be used in the debug channel.", ephemeral=True)
                 return
 
             red_alliance_teams = [team.strip() for team in red_alliance.split()]
@@ -89,8 +84,9 @@ class Commands:
                 return
 
             try:
-                message = str(await msg.match_message_data(red_alliance_teams, blue_alliance_teams))
+                message = msg.match_message_data(red_alliance_teams, blue_alliance_teams)
             except Exception as e:
+                print(e)
                 message = "Data cannot be found at this time. Try again later."
 
             embed = discord.Embed(
@@ -113,7 +109,6 @@ class Commands:
         @app_commands.describe(team_number="The team to mark as favorite.")
         async def favorite(interaction: discord.Interaction, team_number: str):
             if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
-                await interaction.response.send_message("This command can only be used in the debug channel.", ephemeral=True)
                 return
 
             try:
@@ -142,7 +137,6 @@ class Commands:
         @app_commands.describe(event_code="The event code for the tournament.")
         async def tournament_schedule(interaction: discord.Interaction, event_code: str):
             if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
-                await interaction.response.send_message("This command can only be used in the debug channel.", ephemeral=True)
                 return
 
             # Pseudo-code for handling tournament schedule
@@ -175,7 +169,6 @@ class Commands:
         @app_commands.describe(team_number="The team number.")
         async def team_schedule(interaction: discord.Interaction, team_number: str):
             if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
-                await interaction.response.send_message("This command can only be used in the debug channel.", ephemeral=True)
                 return
 
             # Pseudo-code for handling team schedule
@@ -187,7 +180,6 @@ class Commands:
         @self.bot.tree.command(name="live_scoring", description="Displays live scoring for the tournament.")
         async def live_scoring(interaction: discord.Interaction):
             if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
-                await interaction.response.send_message("This command can only be used in the debug channel.", ephemeral=True)
                 return
 
             # Pseudo-code for handling live scoring
@@ -199,7 +191,6 @@ class Commands:
         @self.bot.tree.command(name="list_events", description="Lists events at the tournament.")
         async def list_events(interaction: discord.Interaction):
             if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
-                await interaction.response.send_message("This command can only be used in the debug channel.", ephemeral=True)
                 return
 
             # Pseudo-code for listing events
@@ -210,6 +201,9 @@ class Commands:
     def slash_help(self):
         @self.bot.tree.command(name="help", description="Displays help information.")
         async def help(interaction: discord.Interaction):
+            if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
+                return
+            
             commands_info = {
                 "team": {
                     "description": "Displays team information.",
