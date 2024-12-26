@@ -14,7 +14,6 @@ class Info:
     teamName: str = None
     sponsors: str = None
     location: str = None
-    profileUpdate: str = None
 
 @dataclass
 class Stats:
@@ -31,8 +30,13 @@ class Stats:
     teamNumber: int = None
     autoOPR: float = None
     teleOPR: float = None
-    endgameOPR: float = 0.0
+    endgameOPR: float = None
     overallOPR: float = None
+    autoRank: float = None
+    teleRank: float = None
+    endgameRank: float = None
+    overallRank: float = None
+    profileUpdate: str = None
     
     def __add__(self, other):
         """
@@ -53,8 +57,8 @@ class Stats:
                 autoOPR=self.autoOPR + other.autoOPR,
                 teleOPR=self.teleOPR + other.teleOPR,
                 endgameOPR=self.endgameOPR + other.endgameOPR,
-                overallOPR=self.overallOPR + other.overallOPR
-            )
+                overallOPR=self.overallOPR + other.overallOPR,
+                )
         elif isinstance(other, Info):
             return Summary(info=other, stats=self)
         else:
@@ -67,9 +71,13 @@ class Stats:
         return (
             f"Team Number: **{self.teamNumber}**\n"
             f"Auto OPR: **{self.autoOPR:.2f}**\n"
+            f"Auto Rank: **{self.autoRank}**\n"
             f"Tele OPR: **{self.teleOPR:.2f}**\n"
+            f"Tele Rank: **{self.teleRank}**\n"
             f"Endgame OPR: **{self.endgameOPR:.2f}**\n"
-            f"Overall OPR: **{self.overallOPR:.2f}**"
+            f"Endgame Rank: **{self.endgameRank}**\n"
+            f"Overall OPR: **{self.overallOPR:.2f}**\n"
+            f"Overall Rank: **{self.overallRank}**\n"
         )
     
     def __repr__(self):
@@ -77,6 +85,22 @@ class Stats:
         Returns a string representation of the Stats object for debugging.
         """
         return self.__str__()
+    
+    def __post_init__(self):
+        self.autoRank = self.add_suffix(self.autoRank)
+        self.teleRank = self.add_suffix(self.teleRank)
+        self.endgameRank = self.add_suffix(self.endgameRank)
+        self.overallRank = self.add_suffix(self.overallRank)
+
+    def add_suffix(self, rank):
+        if str(rank).endswith('3'):
+            return str(rank) + 'rd'
+        elif str(rank).endswith('2'):
+            return str(rank) + 'nd'
+        elif str(rank).endswith('1'):
+            return str(rank) + 'st'
+        else:
+            return str(rank) + 'th'
 
 @dataclass
 class Summary:
@@ -131,14 +155,14 @@ class Summary:
         Returns a string representation of the Summary object.
         """
         return (
-            f"Team Name: **{self.info.teamName}**\n"
+            f"Name: **{self.info.teamName}**\n"
             f"Sponsors: **{self.info.sponsors}**\n"
-            f"Location: **{self.info.location}**\n"
-            f"Auto OPR: **{self.stats.autoOPR:.2f}**\n"
-            f"Tele OPR: **{self.stats.teleOPR:.2f}**\n"
-            f"Endgame OPR: **{self.stats.endgameOPR:.2f}**\n"
-            f"Overall OPR: **{self.stats.overallOPR:.2f}**\n"
-            f"\n*Last Updated:* ***{self.info.profileUpdate}***"
+            f"Location: **{self.info.location}**\n \n"
+            f"Auto OPR: **{self.stats.autoOPR:.2f} ({self.stats.autoRank})**\n"
+            f"Tele OPR: **{self.stats.teleOPR:.2f} ({self.stats.teleRank})**\n"
+            f"Endgame OPR: **{self.stats.endgameOPR:.2f} ({self.stats.endgameRank})**\n"
+            f"Overall OPR: **{self.stats.overallOPR:.2f} ({self.stats.overallRank})**\n"
+            f"\n*Last Updated:* ***{self.stats.profileUpdate.replace("T", " ")}***"
         )
     
     def __repr__(self):

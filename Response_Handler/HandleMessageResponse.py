@@ -1,4 +1,3 @@
-from .API_Library.API_Models.Team import Stats, Info
 from .API_Library.API_Models.Event import Alliance, Match
 from .FindData import FindData
 
@@ -16,11 +15,10 @@ class HandleMessageResponse:
         Returns a Team Summary Object containing the data necessary for the team message.
 
         """
-        data_search = FindData()
+        find_team_data = FindData("world_opr_scores_.json")
         try:
-                
-            team_stats = data_search.find_team_stats_from_json(teamNumber)
-            team_info = data_search.callForTeamInfo(teamNumber)
+            team_stats = find_team_data.team_stats_from_json(teamNumber)
+            team_info = find_team_data.TeamInfo(teamNumber)
             
             if team_info and team_stats is not None:
                 return (team_stats + team_info) # Summary Object
@@ -63,7 +61,3 @@ class HandleMessageResponse:
         blue_alliance = HandleMessageResponse.form_alliance('Blue', blueAlliance) if blueAlliance else None
 
         return Match(redAlliance=red_alliance, blueAlliance=blue_alliance) if blueAlliance else red_alliance
-
-# Example usage
-# message = HandleMessageResponse.match_message_data([14584, 14584])
-# print(message)

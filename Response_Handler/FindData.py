@@ -13,7 +13,12 @@ class FindData:
         self.api_client = FirstAPI()
         self.file_path = file_path
     
-    def callForTeamInfo(self, teamNumber, year=None):
+    file_path = "team_opr_scores_2024.json"
+    
+    def set_file_path(self, file_path):
+        self.file_path = file_path
+    
+    def TeamInfo(self, teamNumber, year=None):
         year = year or self.find_year()
         team_info_params = APIParams(
             path_segments=[year, 'teams'],
@@ -22,15 +27,15 @@ class FindData:
         
         return self.api_client.get_team_info(team_info_params)
     
-    def callForTournamentStats(self, event, year=None):
-        year = year or self.find_year()
+    def TournamentStats(self, event, year=None):
+        year = year or FindData.find_year()
         team_stats_params = APIParams(
             path_segments=[year, 'matches', event],
         )
         
         return self.api_client.get_team_stats_from_tournament(team_stats_params)
     
-    def callForTeamStats(self, teamNumber):
+    def TeamStats(self, teamNumber):
         """
         Parse a JSON file and find the key (team number) with the specified team name.
 
@@ -45,16 +50,23 @@ class FindData:
         except (FileNotFoundError, json.JSONDecodeError) as e:
             print(f"Error reading JSON file: {e}")
             return None
-        
-    def find_team_stats_from_json(self, teamNumber):
-        team_data = self.callForTeamStats(teamNumber)
+    
+    def team_stats_from_json(self, teamNumber):
+        team_data = self.TeamStats(teamNumber)
         if team_data:
+            date_str = team_data.get('modifiedOn', None)
+            parsed_date = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S.%f")
             return Stats(
                 teamNumber=teamNumber,
-                autoOPR=team_data.get('Auto OPR', 0.0),
-                teleOPR=team_data.get('TeleOp OPR', 0.0),
-                # endgameOPR=team_data.get('Endgame OPR', 0.0), # Not in JSON (Occluded from OPR Stat)
-                overallOPR=team_data.get('Overall OPR', 0.0)
+                autoOPR=team_data.get('autoOPR', 0.0),
+                autoRank=team_data.get('autoRank', 0),
+                teleOPR=team_data.get('teleOPR', 0.0),
+                teleRank=team_data.get('teleRank', 0),
+                endgameOPR=team_data.get('endgameOPR', 0.0),
+                endgameRank=team_data.get('endgameRank', 0),
+                overallOPR=team_data.get('overallOPR', 0.0),
+                overallRank=team_data.get('overallRank', 0),
+                profileUpdate = parsed_date.strftime("%m/%d/%Y %H:%M")
             )
         return Stats(teamNumber=teamNumber)
 
