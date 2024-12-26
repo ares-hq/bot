@@ -50,7 +50,12 @@ class FTCScout(discord.Client):
 
     def run_bot(self):
         self.commands.setup_commands()
-        self.run(os.getenv('API_KEY'))
+        self.key = os.getenv('API_KEY')
+        if not self.key:
+            raise EnvironmentError("Environment variable API_KEY is required.")
+        self.run(self.key)
+
+        
 
 if __name__ == '__main__':
     bot = FTCScout()

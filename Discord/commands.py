@@ -44,8 +44,9 @@ class Commands:
                 return
             
             try:
-                message = msg.team_message_data(team_number)
+                message = msg.team_message_data(team_number).__str__()
             except Exception as e:
+                print(e) if self.bot.debug_mode else None
                 message = "Data cannot be found at this time. Try again later."
 
             embed = discord.Embed(
@@ -84,16 +85,38 @@ class Commands:
                 return
 
             try:
-                message = msg.match_message_data(red_alliance_teams, blue_alliance_teams)
+                message = msg.match_message_data(red_alliance_teams, blue_alliance_teams).__str__()
             except Exception as e:
-                print(e)
+                print(e) if self.bot.debug_mode else None
                 message = "Data cannot be found at this time. Try again later."
 
-            embed = discord.Embed(
-                title=f"Match Summary",
-                description=message,
-                color=discord.Color.lighter_grey()
-            )
+            # embed = discord.Embed(
+            #     title=f"Match Summary",
+            #     description=message,
+            #     color=discord.Color.lighter_grey()
+            # )
+
+            # Embed setup
+            
+            
+            # Add fields for red and blue columns
+                    # Add fields for red and blue columns
+
+            if '||' in message:
+                red_message, blue_message = message.split('||')
+                embed = discord.Embed(
+                                        title="Scoreboard",
+                                        description=f"```diff\n- {red_message}\n``` ```yaml\n{blue_message}\n```",
+                                        color=discord.Color.lighter_grey()
+                )
+            else:
+                embed = discord.Embed(
+                                        title="Scoreboard",
+                                        description=f"```diff\n- {message}\n```",
+                                        color=discord.Color.lighter_grey()
+                )
+
+                
 
             # embed = discord.Embed(
             #     title=f"Match {match_data['match_number']} - {match_data['event_name']}",
@@ -130,6 +153,7 @@ class Commands:
                     self.bot.favorite_teams[server_id] = team_number
 
             except (KeyError,Exception) as e:
+                print(e) if self.bot.debug_mode else None
                 await interaction.response.send_message(f"Team {team_number} does not exist. Try again.", ephemeral=True)
 
     def slash_tournament_schedule(self):

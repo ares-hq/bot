@@ -32,7 +32,7 @@ class HandleMessageResponse:
     @staticmethod
     def get_team_stats(team):
         try:
-            return HandleMessageResponse.team_message_data(team)['stats']
+            return HandleMessageResponse.team_message_data(team)
         except KeyError as e:
             return e
 
