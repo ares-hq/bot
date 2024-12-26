@@ -31,7 +31,7 @@ class Stats:
     teamNumber: int = None
     autoOPR: float = None
     teleOPR: float = None
-    endgameOPR: float = 0.0
+    endgameOPR: float = None
     overallOPR: float = None
     
     def __add__(self, other):
@@ -50,10 +50,10 @@ class Stats:
         if isinstance(other, Stats):
             return Stats(
                 teamNumber=[self.teamNumber, other.teamNumber],
-                autoOPR=self.autoOPR + other.autoOPR,
-                teleOPR=self.teleOPR + other.teleOPR,
-                endgameOPR=self.endgameOPR + other.endgameOPR,
-                overallOPR=self.overallOPR + other.overallOPR
+                autoOPR=(self.autoOPR or 0) + (other.autoOPR or 0),
+                teleOPR=(self.teleOPR or 0) + (other.teleOPR or 0),
+                endgameOPR=(self.endgameOPR or 0) + (other.endgameOPR or 0),
+                overallOPR=(self.overallOPR or 0) + (other.overallOPR or 0)
             )
         elif isinstance(other, Info):
             return Summary(info=other, stats=self)

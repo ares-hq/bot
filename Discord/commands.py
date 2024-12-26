@@ -95,12 +95,9 @@ class Commands:
             #     description=message,
             #     color=discord.Color.lighter_grey()
             # )
-
-            # Embed setup
             
             
             # Add fields for red and blue columns
-                    # Add fields for red and blue columns
 
             if '||' in message:
                 red_message, blue_message = message.split('||')
