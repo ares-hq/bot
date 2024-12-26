@@ -3,7 +3,6 @@ from discord import app_commands
 from dotenv import load_dotenv
 import os
 from Discord.commands import Commands
-import Discord.utils as utils
 
 load_dotenv()
 class FTCScout(discord.Client):
