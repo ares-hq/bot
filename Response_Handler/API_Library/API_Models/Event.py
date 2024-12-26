@@ -47,7 +47,7 @@ class Event:
 
     Attributes:
         eventCode (str): The code for the event. Example: 'USAZTUQ'.
-        teams (list[str]): A list of team numbers. Example: ['14584', '12345'].
+        teams (list[str]): A list of team numbers. Example: ['14584', '1234'].
         matches (Dict[str, Match]): A dictionary mapping match names to Match objects. Example: matches['Qualification 1'].
     """
     eventCode: str = None
