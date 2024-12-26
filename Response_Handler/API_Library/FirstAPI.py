@@ -1,6 +1,6 @@
 import requests
 from .APIParams import APIParams
-from .API_Models.Team import Info as ti, Stats as ts
+from .API_Models.Team import Info, Stats
 from .API_Models.Event import Event
 import os
 from dotenv import load_dotenv
@@ -47,12 +47,12 @@ class FirstAPI:
         except requests.exceptions.HTTPError as e:
             return TypeError("Team not found.")
 
-        team_data = ti()
+        team_data = Info()
         team_info = response.json().get('teams', [{}])[0]
 
         team_data.teamName = team_info.get('nameShort', "Unknown")
         team_data.location = f"{team_info.get('city', 'Unknown')}, {team_info.get('stateProv', 'Unknown')}, {team_info.get('country', 'Unknown')}"
-        team_data.sponsors = str(team_info.get('nameFull', "Unknown")).replace("/", ", ").replace("&", ", ")
+        team_data.sponsors = str(team_info.get('nameFull', "Unknown")).replace("/", ", ").replace("&", ", ").rstrip(", ")
 
         return team_data
             
@@ -77,7 +77,7 @@ class FirstAPI:
         teams_auto = mm.LSE(matrix_builder.binary_matrix, matrix_builder.auto_matrix)
         teams_tele = mm.LSE(matrix_builder.binary_matrix, matrix_builder.tele_matrix)
         for team in matrix_builder.teams:
-            team_stats = ts()
+            team_stats = Stats()
             team_stats.autoOPR = teams_auto[matrix_builder.team_indices[team]]
             team_stats.teleOPR = teams_tele[matrix_builder.team_indices[team]]
             team_stats.overallOPR = team_stats.autoOPR + team_stats.teleOPR
