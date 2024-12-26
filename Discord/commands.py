@@ -1,9 +1,10 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from utils import PaginationView, create_multi_page_embed as create_mpe
+from .utils import PaginationView, create_multi_page_embed as create_mpe
 import requests
 import re
+from Response_Handler.HandleMessageResponse import HandleMessageResponse as msg
 
 
 #####################################################
@@ -29,10 +30,10 @@ class Commands:
         self.slash_team()
         self.slash_match()
         self.slash_favorite()
-        self.slash_tournament_schedule()
-        self.slash_team_schedule()
-        self.slash_live_scoring()
-        self.slash_list_events()
+        # self.slash_tournament_schedule()
+        # self.slash_team_schedule()
+        # self.slash_live_scoring()
+        # self.slash_list_events()
         self.slash_help()
 
     def process_alliance(self, alliance: str) -> list:
@@ -45,34 +46,29 @@ class Commands:
             if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
                 await interaction.response.send_message("This command can only be used in the debug channel.", ephemeral=True)
                 return
-
-            processed_info = [
-                f"Team information for Team {team_number}",
-                "OPR for teleop: 45.6",
-                "OPR for auto: 30.2",
-                "OPR for endgame: 25.4",
-                "Sponsors: ABC Corp, XYZ Inc.",
-                "Location: Phoenix, AZ",
-                "Website: http://team14584.org"
-            ]
+            
+            try:
+                message = msg.team_message_data(team_number)
+            except Exception as e:
+                message = "Data cannot be found at this time. Try again later."
 
             embed = discord.Embed(
-                title=processed_info[0],
-                description="\n".join(processed_info[1:]),
-                color=discord.Color.from_str('#0066B3')
+                title=f"Information for Team {team_number}",
+                description=message,
+                color=discord.Color.lighter_grey()
             )
 
             # Fetch the avatar image
-            url = None  # Initialize the url variable
-            css_content = requests.get('https://ftc-scoring.firstinspires.org/avatars/composed/2025.css').text
-            match = re.search(rf'\.team-{team_number} \{{\s*background-image: url\("(?P<url>data:image/png;base64,[^"]+)"\);', css_content)
-            if match:
-                url = match.group("url")
+            # url = None  # Initialize the url variable
+            # css_content = requests.get('https://ftc-scoring.firstinspires.org/avatars/composed/2025.css').text
+            # match = re.search(rf'\.team-{team_number} \{{\s*background-image: url\("(?P<url>data:image/png;base64,[^"]+)"\);', css_content)
+            # if match:
+            #     url = match.group("url")
             
-            if url and url.startswith("data:image/png;base64,"):
-                embed.set_thumbnail(url=url)
-            else:
-                embed.set_thumbnail(url="https://via.placeholder.com/150")
+            # if url and url.startswith("data:image/png;base64,"):
+            #     embed.set_thumbnail(url=url)
+            # else:
+            #     embed.set_thumbnail(url="https://via.placeholder.com/150")
 
             embed.set_footer(text="Use /team <team_number> for specific team details.")
             await interaction.response.send_message(embed=embed)
@@ -85,35 +81,30 @@ class Commands:
                 await interaction.response.send_message("This command can only be used in the debug channel.", ephemeral=True)
                 return
 
-            red_alliance_teams = self.process_alliance(red_alliance)
-            blue_alliance_teams = self.process_alliance(blue_alliance) if blue_alliance else []
+            red_alliance_teams = [team.strip() for team in red_alliance.split()]
+            blue_alliance_teams = [team.strip() for team in blue_alliance.split()] if blue_alliance else []
 
             if len(red_alliance_teams) != 2 or (blue_alliance and len(blue_alliance_teams) != 2):
-                await interaction.response.send_message("Each alliance must have exactly 2 team numbers.", ephemeral=True)
+                await interaction.response.send_message("Each alliance must have exactly 2 team numbers separated by a space.\n", ephemeral=True)
                 return
 
-            # Example match data
-            match_data = {
-                "match_number": 1,
-                "red_alliance": red_alliance_teams,
-                "blue_alliance": blue_alliance_teams,
-                "red_score": 150,
-                "blue_score": 140,
-                "event_name": "Arizona Qualifier",
-                "match_time": "10:00 AM"
-            }
+            try:
+                message = str(await msg.match_message_data(red_alliance_teams, blue_alliance_teams))
+            except Exception as e:
+                message = "Data cannot be found at this time. Try again later."
+                print(e)
 
             embed = discord.Embed(
-                title=f"Match {match_data['match_number']} - {match_data['event_name']}",
-                description=f"**Match Time:** {match_data['match_time']}",
-                color=discord.Color.from_str('#ED1C24')
+                title=f"Match Summary",
+                description=message,
+                color=discord.Color.lighter_grey()
             )
 
-            embed.add_field(name="Red Alliance", value="\n".join(match_data["red_alliance"]), inline=True)
-            if blue_alliance:
-                embed.add_field(name="Blue Alliance", value="\n".join(match_data["blue_alliance"]), inline=True)
-                embed.add_field(name="Red Score", value=str(match_data["red_score"]), inline=True)
-                embed.add_field(name="Blue Score", value=str(match_data["blue_score"]), inline=True)
+            # embed = discord.Embed(
+            #     title=f"Match {match_data['match_number']} - {match_data['event_name']}",
+            #     description=f"**Match Time:** {match_data['match_time']}",
+            #     color=discord.Color.from_str('#ED1C24')
+            # )
 
             embed.set_footer(text="Use /match <red_alliance> <blue_alliance> for specific match details.")
             await interaction.response.send_message(embed=embed)
@@ -129,13 +120,7 @@ class Commands:
             server_id = interaction.guild.id
             self.bot.favorite_teams[server_id] = team_number
 
-            try:
-                message = await interaction.original_response()
-                await message.add_reaction("⭐")
-            except discord.errors.NotFound:
-                print("Could not add reaction: Message not found")
-            except discord.errors.Forbidden:
-                print("Could not add reaction: Missing permissions")
+            await interaction.response.send_message(f"Team {team_number} has been set as the server favorite!", ephemeral=True)
 
             print(f"Team {team_number} is now marked as the favorite for server {server_id}.")
 
@@ -230,22 +215,22 @@ class Commands:
                     "description": "Marks this as your favorite.",
                     "usage": "/favorite <team_number>"
                 },
-                "tournament_schedule": {
-                    "description": "Displays tournament schedule given an event code.",
-                    "usage": "/tournament_schedule <event_code>"
-                },
-                "team_schedule": {
-                    "description": "Displays team schedule given a team number.",
-                    "usage": "/team_schedule <team_number>"
-                },
-                "live_scoring": {
-                    "description": "Displays live scoring for the tournament.",
-                    "usage": "/live_scoring"
-                },
-                "list_events": {
-                    "description": "Lists events at the tournament.",
-                    "usage": "/list_events"
-                }
+                # "tournament_schedule": {
+                #     "description": "Displays tournament schedule given an event code.",
+                #     "usage": "/tournament_schedule <event_code>"
+                # },
+                # "team_schedule": {
+                #     "description": "Displays team schedule given a team number.",
+                #     "usage": "/team_schedule <team_number>"
+                # },
+                # "live_scoring": {
+                #     "description": "Displays live scoring for the tournament.",
+                #     "usage": "/live_scoring"
+                # },
+                # "list_events": {
+                #     "description": "Lists events at the tournament.",
+                #     "usage": "/list_events"
+                # }
             }
 
             pages = []

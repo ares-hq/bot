@@ -20,6 +20,7 @@ class FTCScout(discord.Client):
     async def setup_hook(self):
         await self.tree.sync()
         print("Slash commands synced successfully!")
+        self._load_favorite_teams()
 
     async def on_ready(self):
         print(f"{self.user.name} ({self.user.id}) is live!")
@@ -32,9 +33,21 @@ class FTCScout(discord.Client):
     def set_debug_mode(self, enabled: bool, channel_id: int = None):
         self.debug_mode = enabled
         self.debug_channel_id = channel_id
-        print(f"Debug mode {'enabled' if enabled else 'disabled'}")
-        if channel_id:
-            print(f"Debug channel ID set to {channel_id}")
+
+    def _load_favorite_teams(self):
+        self.favorite_teams = {}
+        for guild in self.guilds:
+            for member in guild.members:
+                if member.bot and member.nick:
+                    # print(f"Checking bot nickname: {member.nick}")
+                    if member.nick.startswith("Team ") and member.nick.endswith(" Bot"):
+                        try:
+                            team_number = int(member.nick.split(" ")[1])
+                            self.favorite_teams[guild.id] = team_number
+                            print(f"Added team {team_number} for guild {guild.id}")
+                        except ValueError:
+                            continue
+        print("Favorite teams loaded:", self.favorite_teams)
 
     def run_bot(self):
         self.commands.setup_commands()
