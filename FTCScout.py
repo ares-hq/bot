@@ -47,7 +47,7 @@ class FTCScout(discord.Client):
                             print(f"Added team {team_number} for guild {guild.id}")
                         except ValueError:
                             continue
-        print("Favorite teams loaded:", self.favorite_teams)
+        print("Favorite teams loaded.")
 
     def run_bot(self):
         self.commands.setup_commands()

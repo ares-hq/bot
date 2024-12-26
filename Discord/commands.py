@@ -92,7 +92,6 @@ class Commands:
                 message = str(await msg.match_message_data(red_alliance_teams, blue_alliance_teams))
             except Exception as e:
                 message = "Data cannot be found at this time. Try again later."
-                print(e)
 
             embed = discord.Embed(
                 title=f"Match Summary",
@@ -117,17 +116,26 @@ class Commands:
                 await interaction.response.send_message("This command can only be used in the debug channel.", ephemeral=True)
                 return
 
-            server_id = interaction.guild.id
-            self.bot.favorite_teams[server_id] = team_number
-
-            await interaction.response.send_message(f"Team {team_number} has been set as the server favorite!", ephemeral=True)
-
-            print(f"Team {team_number} is now marked as the favorite for server {server_id}.")
-
             try:
-                await interaction.guild.me.edit(nick=f"Team {team_number} Bot")
-            except discord.errors.Forbidden:
-                print("Could not change nickname: Missing permissions")
+                team_data = msg.team_message_data(team_number)
+                if not team_data:
+                    await interaction.response.send_message(f"Team {team_number} does not exist. Try again.", ephemeral=True)
+                    return
+
+                try:
+                    await interaction.guild.me.edit(nick=f"Team {team_number} Bot")
+                except discord.errors.Forbidden:
+                    out = 'Could not change nickname: Missing permissions'
+                    await interaction.response.send_message(out, ephemeral=True)
+                    return
+
+                await interaction.response.send_message(f"Team {team_number} has been set as the server favorite!", ephemeral=True)
+                if interaction.guild.id in self.bot.favorite_teams:
+                    server_id = interaction.guild.id
+                    self.bot.favorite_teams[server_id] = team_number
+
+            except (KeyError,Exception) as e:
+                await interaction.response.send_message(f"Team {team_number} does not exist. Try again.", ephemeral=True)
 
     def slash_tournament_schedule(self):
         @self.bot.tree.command(name="tournament_schedule", description="Displays tournament schedule given an event code.")

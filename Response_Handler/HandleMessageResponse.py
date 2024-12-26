@@ -22,26 +22,26 @@ class HandleMessageResponse:
             team_stats = data_search.find_team_stats_from_json(teamNumber)
             team_info = data_search.callForTeamInfo(teamNumber)
             
-            if team_info and team_info is not None:
+            if team_info and team_stats is not None:
                 return (team_stats + team_info) # Summary Object
             else:
-                return KeyError("Team not found.")
-        except Exception:
-            raise KeyError("Data message not found.")
+                raise KeyError("Data message not found.")
+        except KeyError as e:
+            return e
 
     @staticmethod
     def get_team_stats(team):
         try:
             return HandleMessageResponse.team_message_data(team)['stats']
         except KeyError as e:
-            raise e
+            return e
 
     @staticmethod
     def form_alliance(color, teams):
         """Creates an Alliance object from a list of team numbers"""
         team_objects = [HandleMessageResponse.get_team_stats(team) for team in teams]
         if len(team_objects) != 2:
-            raise ValueError("Alliances are required to have exactly two teams.")
+            return ValueError("Alliances are required to have exactly two teams.")
         return Alliance(team1=team_objects[0], team2=team_objects[1], color=color)
 
     @staticmethod
@@ -57,7 +57,7 @@ class HandleMessageResponse:
             Match: A Match object containing the red and blue alliances.
         """
         if len(redAlliance) > 2 or (blueAlliance is not None and len(blueAlliance) > 2):
-            raise ValueError("Exactly two teams are required to form an alliance.")
+            return ValueError("Exactly two teams are required to form an alliance.")
 
         red_alliance = HandleMessageResponse.form_alliance('Red', redAlliance)
         blue_alliance = HandleMessageResponse.form_alliance('Blue', blueAlliance) if blueAlliance else None
