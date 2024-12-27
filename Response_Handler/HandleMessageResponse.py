@@ -1,4 +1,4 @@
-from .API_Library.API_Models.Team import Stats, Info
+from .API_Library.API_Models.Team import Stats, Info,Summary
 from .API_Library.API_Models.Event import Alliance, Match
 from .FindData import FindData
 
@@ -11,58 +11,46 @@ class HandleMessageResponse:
     """
     
     @staticmethod
-    def team_message_data(teamNumber):
-        """
-        Returns a Team Summary Object containing the data necessary for the team message.
-
-        """
+    def team_message_data(teamNumber:str)->Summary:
+        """Returns a Team Summary Object containing the data necessary for the team message."""
         data_search = FindData()
         try:
-                
-            team_stats = data_search.find_team_stats_from_json(teamNumber)
-            team_info = data_search.callForTeamInfo(teamNumber)
+            team_summary = (data_search.find_team_stats_from_json(teamNumber) + 
+                            data_search.callForTeamInfo(teamNumber))
             
-            if team_info and team_stats is not None:
-                return (team_stats + team_info) # Summary Object
-            else:
-                raise KeyError("Data message not found.")
+            if team_summary.info is None:
+                raise KeyError(f"Missing data - Team Info")
+            elif team_summary.stats is None:
+                raise KeyError(f"Missing data - Team Stats")
+                   
+            return  team_summary # Summary Object
+        
         except KeyError as e:
-            return e
+            raise KeyError(f"Error in team_message_data for team number {teamNumber}") from e
 
-    @staticmethod
-    def get_team_stats(team):
-        try:
-            return HandleMessageResponse.team_message_data(team)
-        except KeyError as e:
-            return e
-
-    @staticmethod
-    def form_alliance(color, teams):
+    def form_alliance(color:str, teams:list[str])->Alliance:
         """Creates an Alliance object from a list of team numbers"""
-        team_objects = [HandleMessageResponse.get_team_stats(team) for team in teams]
-        if len(team_objects) != 2:
-            return ValueError("Alliances are required to have exactly two teams.")
-        return Alliance(team1=team_objects[0], team2=team_objects[1], color=color)
+        try:
+            if teams is None or len(teams) != 2:
+                return Alliance(team1=None, team2=None, color=color)
+            team_objects = [HandleMessageResponse.team_message_data(team) for team in teams]
+            alliance = Alliance(team1=team_objects[0], team2=team_objects[1], color=color)
+            # print(alliance.team1, alliance.team2)
+            return alliance
+        except Exception as e:
+            raise ValueError(f"Error in form_alliance for color {color} with teams {teams}") from e
 
     @staticmethod
-    def match_message_data(redAlliance, blueAlliance=None):
-        """
-        Returns a Match object containing the data necessary for the match message.
-
-        Args:
-            redAlliance (list): List of team numbers for the red alliance.
-            blueAlliance (list, optional): List of team numbers for the blue alliance. Defaults to None.
-
-        Returns:
-            Match: A Match object containing the red and blue alliances.
-        """
-        if len(redAlliance) > 2 or (blueAlliance is not None and len(blueAlliance) > 2):
-            return ValueError("Exactly two teams are required to form an alliance.")
-
-        red_alliance = HandleMessageResponse.form_alliance('Red', redAlliance)
-        blue_alliance = HandleMessageResponse.form_alliance('Blue', blueAlliance) if blueAlliance else None
-
-        return Match(redAlliance=red_alliance, blueAlliance=blue_alliance) if blueAlliance else red_alliance
+    def match_message_data(redAlliance:list[str], blueAlliance:list[str]=None)->Match:
+        """ Returns a Match object containing 2 Alliance objects ("Red" and "Blue")."""
+        try:
+            # print(redAlliance, blueAlliance)
+            match = Match(redAlliance=HandleMessageResponse.form_alliance('Red', redAlliance),
+                         blueAlliance=HandleMessageResponse.form_alliance('Blue', blueAlliance))
+            # print(match.__str__())
+            return match
+        except Exception as e:
+            raise ValueError("Error in match_message_data") from e
 
 # Example usage
 # message = HandleMessageResponse.match_message_data([14584, 14584])

@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class Info:
@@ -11,10 +11,10 @@ class Info:
         location (str): The location of the team.
         profileUpdate (str): The date of the last profile update.
     """
-    teamName: str = None
-    sponsors: str = None
-    location: str = None
-    profileUpdate: str = None
+    teamName: str = field(default_factory=str)
+    sponsors: str = field(default_factory=str)
+    location: str = field(default_factory=str)
+    profileUpdate: str = field(default_factory=str)
 
 @dataclass
 class Stats:
@@ -28,11 +28,22 @@ class Stats:
         endgameOPR (float): The endgame OPR.
         overallOPR (float): The overall OPR.
     """
-    teamNumber: int = None
-    autoOPR: float = None
-    teleOPR: float = None
-    endgameOPR: float = None
-    overallOPR: float = None
+    teamNumber: int = field(default_factory=int)
+    autoOPR: float = field(default_factory=float)
+    teleOPR: float = field(default_factory=float)
+    endgameOPR: float = field(default_factory=float)
+    overallOPR: float = field(default_factory=float)
+
+    def __post_init__(self):
+        """
+        Post-initialization processing to ensure that teamNumber is not None.
+        """
+        self.teamNumber = self.teamNumber or 0
+        self.autoOPR = self.autoOPR or 0
+        self.teleOPR = self.teleOPR or 0
+        self.endgameOPR = self.endgameOPR or 0
+        self.overallOPR = self.overallOPR or self.autoOPR + self.teleOPR + self.endgameOPR
+
     
     def __add__(self, other):
         """
@@ -49,11 +60,11 @@ class Stats:
         """
         if isinstance(other, Stats):
             return Stats(
-                teamNumber=[self.teamNumber, other.teamNumber],
-                autoOPR=(self.autoOPR or 0) + (other.autoOPR or 0),
-                teleOPR=(self.teleOPR or 0) + (other.teleOPR or 0),
-                endgameOPR=(self.endgameOPR or 0) + (other.endgameOPR or 0),
-                overallOPR=(self.overallOPR or 0) + (other.overallOPR or 0)
+                teamNumber= [self.teamNumber, other.teamNumber],
+                autoOPR=    self.autoOPR + other.autoOPR,
+                teleOPR=    self.teleOPR + other.teleOPR,
+                endgameOPR= self.endgameOPR + other.endgameOPR,
+                overallOPR= self.overallOPR + other.overallOPR
             )
         elif isinstance(other, Info):
             return Summary(info=other, stats=self)
@@ -69,14 +80,8 @@ class Stats:
             f"Auto OPR: **{self.autoOPR:.2f}**\n"
             f"Tele OPR: **{self.teleOPR:.2f}**\n"
             f"Endgame OPR: **{self.endgameOPR:.2f}**\n"
-            f"Overall OPR: **{self.overallOPR:.2f}**"
+            f"Overall OPR: **{self.overallOPR:.2f}**\n"
         )
-    
-    def __repr__(self):
-        """
-        Returns a string representation of the Stats object for debugging.
-        """
-        return self.__str__()
 
 @dataclass
 class Summary:
@@ -112,8 +117,17 @@ class Summary:
         >>> print(summary['stats'])
         Stats(teamNumber=1234, autoOPR=10.0, teleOPR=20.0, endgameOPR=30.0, overallOPR=60.0)
     """
-    info: Info
-    stats: Stats
+    info: Info = field(default_factory=Info)
+    stats: Stats = field(default_factory=Stats)
+
+    def __post_init__(self):
+        """
+        Post-initialization processing to ensure that info attributes are not None.
+        """
+        self.info.teamName = self.info.teamName or ""
+        self.info.sponsors = self.info.sponsors or ""
+        self.info.location = self.info.location or ""
+        self.info.profileUpdate = self.info.profileUpdate or ""
 
     def __getitem__(self, key):
         """
@@ -138,11 +152,5 @@ class Summary:
             f"Tele OPR: **{self.stats.teleOPR:.2f}**\n"
             f"Endgame OPR: **{self.stats.endgameOPR:.2f}**\n"
             f"Overall OPR: **{self.stats.overallOPR:.2f}**\n"
-            f"\n*Last Updated:* ***{self.info.profileUpdate}***"
+            f"Last Updated: *{self.info.profileUpdate}*\n"
         )
-    
-    def __repr__(self):
-        """
-        Returns a string representation of the Summary object for debugging.
-        """
-        return self.__str__()

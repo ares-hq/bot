@@ -53,7 +53,7 @@ class FindData:
                 teamNumber=teamNumber,
                 autoOPR=team_data.get('Auto OPR', 0.0),
                 teleOPR=team_data.get('TeleOp OPR', 0.0),
-                # endgameOPR=team_data.get('Endgame OPR', 0.0), # Not in JSON (Occluded from OPR Stat)
+                endgameOPR=team_data.get('Endgame OPR', 0.0), # Not in JSON (Occluded from OPR Stat)
                 overallOPR=team_data.get('Overall OPR', 0.0)
             )
         return Stats(teamNumber=teamNumber)

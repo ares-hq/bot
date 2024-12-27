@@ -4,35 +4,25 @@ from .Team import Stats,Info,Summary
 
 @dataclass
 class Alliance:
-    team1: Summary
-    team2: Summary
-    color: str
+    team1: Summary = field(default_factory=Summary)
+    team2: Summary = field(default_factory=Summary)
+    color: str = field(default_factory=str)
+
+
+    @classmethod
+    def from_teams(cls, team1: Summary, team2: Summary):
+        color = 'red' if (cls.counter % 2 == 0) else 'blue'
+        cls.counter += 1
+        return cls(team1=team1, team2=team2, color=color)
+
+    counter = 0
 
     def __post_init__(self):
-        self.alliance: Stats = self.team1['stats'] + self.team2['stats']
-
-    def __str__(self):
-        ''' Red ASCII = \033[31m .... \033[0m \n
-            Blue ASCII = \033[34m .... \033[0m \n
-            White ASCII = \033[7m .... \033[0m 
-            '''
-        return (
-                "```markdown\n"
-                "**Teams**\n"
-                f"{self.team1.stats.teamNumber}\n"
-                f"{self.team2.stats.teamNumber}\n"
-                "\n"
-                "**Auto**\n"
-                f"{self.alliance.autoOPR:.0f}\n"
-                "**Teleop**\n"
-                f"{self.alliance.teleOPR:.0f}\n"
-                "**Endgame**\n"
-                f"{self.alliance.endgameOPR:.0f}\n"
-                "\n"
-                "**Score**\n"
-                f"{self.alliance.overallOPR:.0f}\n"
-                "```"
-        )
+        if not self.team1:
+            self.team1 = Summary()
+        if not self.team2:
+            self.team2 = Summary()
+        self.alliance: Stats = self.team1.stats + self.team2.stats
 
 @dataclass
 class Match:
@@ -42,22 +32,47 @@ class Match:
     def __post_init__(self):
         self.redScores: Stats = self.redAlliance.alliance
         self.blueScores: Stats = self.blueAlliance.alliance
-        self.winner = self.redAlliance if self.redScores.overallOPR > self.blueScores.overallOPR else self.blueAlliance
+        if self.redScores.overallOPR > self.blueScores.overallOPR:
+            self.winner = self.redAlliance.color
+        elif self.redScores.overallOPR < self.blueScores.overallOPR:
+            self.winner = self.blueAlliance.color
+        else:
+            self.winner = "Tie"
 
     def __str__(self):
-        return (
-                                                "| **Red Alliance**        || **Blue Alliance**      |\n"
-                                                "|-------------------------||-------------------------|\n"
-            f"| **Team1**: {self.redAlliance.team1.stats.teamNumber}        || **Team1**: {self.blueAlliance.team1.stats.teamNumber}         |\n"
-            f"| **Team2**: {self.redAlliance.team2.stats.teamNumber}        || **Team2**: {self.blueAlliance.team2.stats.teamNumber}          |\n"
-            f"| **Auto**: {self.redScores.autoOPR:.2f}                     || **Auto**: {self.blueScores.autoOPR:.2f}          |\n"
-            f"| **Teleop**: {self.redScores.teleOPR:.2f}                   || **Teleop**: {self.blueScores.teleOPR:.2f}        |\n"
-            f"| **Endgame**: {self.redScores.endgameOPR:.2f}               || **Endgame**: {self.blueScores.endgameOPR:.2f}       |\n"
-            f"| **Score**: {self.redScores.overallOPR:.2f}                 || **Score**: {self.blueScores.overallOPR:.2f}         |"
-            "\n"
-            f"**Winner**: {self.winner.color} Alliance"
-        )
-    
+        categories = ["Team 1", "Team 2", "Auto", "TeleOp", "End Game", "Final Score", "Winner"]
+        red_scores = [
+            str(self.redScores.teamNumber[0]),
+            str(self.redScores.teamNumber[1]),
+            f"{self.redScores.autoOPR:.0f}",
+            f"{self.redScores.teleOPR:.0f}",
+            f"{self.redScores.endgameOPR:.0f}",
+            f"{self.redScores.overallOPR:.0f}"
+        ]
+        blue_scores = [
+            str(self.blueScores.teamNumber[0]),
+            str(self.blueScores.teamNumber[1]),
+            f"{self.blueScores.autoOPR:.0f}",
+            f"{self.blueScores.teleOPR:.0f}",
+            f"{self.blueScores.endgameOPR:.0f}",
+            f"{self.blueScores.overallOPR:.0f}"
+        ]
+
+        red_formatted =  '\n'.join(f"- {score}" for score in red_scores)
+        blue_formatted = '\n'.join(f"[{score}]" for score in blue_scores)
+
+        if self.winner == "Tie":
+            winner_text = "```fix\nTie\n```"
+        else:
+            winner_text = f"```diff\n- {self.winner}\n```" if self.winner == 'Red' else f"```ini\n[ {self.winner} ]\n```"
+
+        return [
+            f"{'\n'.join(categories)}",
+            f"```diff\n{red_formatted}\n```",
+            f"\n```ini\n{blue_formatted}\n```",
+            f"{winner_text}"
+        ]
+        
 @dataclass
 class Event:
     """
@@ -68,6 +83,6 @@ class Event:
         teams (list[str]): A list of team numbers. Example: ['14584', '1234'].
         matches (Dict[str, Match]): A dictionary mapping match names to Match objects. Example: matches['Qualification 1'].
     """
-    eventCode: str = None
+    eventCode: str = field(default_factory=str)
     teams: list[str] = field(default_factory=list)
     matches: Dict[str,Match] = field(default_factory=dict)
