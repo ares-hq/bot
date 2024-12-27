@@ -57,5 +57,4 @@ class MatrixBuilder():
             self.auto_matrix[2 * match_idx] = red_score_auto
             self.auto_matrix[2 * match_idx + 1] = blue_score_auto
             self.endgame_matrix[2 * match_idx] = red_score_endgame
-            self.endgame_matrix[2 * match_idx + 1] = blue_score_endgame
-        
+            self.endgame_matrix[2 * match_idx + 1] = blue_score_endgame        

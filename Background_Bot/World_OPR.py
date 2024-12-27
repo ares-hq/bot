@@ -18,7 +18,7 @@ class WorldOPR:
     def calculate_world_opr_scores(self):
         api_client = FirstAPI()
         event_codes = api_client.get_season_events(FindData.find_year())
-        event_codes = ['USAZTUQ']
+        # event_codes = ['CABCPMS']
         
         for event in tqdm(event_codes, desc="Processing Tournaments", unit=" events"):
             matchOPRparams = APIParams([FindData.find_year(), 'matches', event])

@@ -67,17 +67,21 @@ class FirstAPI:
         url = self.url_builder.build(*params.to_path_segments())
         response = self.api_request(url)
         match_data = response.json().get('matches')
-        
+
         endgameParams = APIParams(
             path_segments=[params.path_segments[0], 'scores', params.path_segments[2], 'qual'],
         )
-        
+
         endgameStats = self.get_endgame_stats(endgameParams)
-        modified_on_match_data = []
+        modified_on_match_data = {}
         for match, endgame in zip(match_data, endgameStats):
             match["scoreRedEndgame"] = endgame["red"]
             match["scoreBlueEndgame"] = endgame["blue"]
-            modified_on_match_data.append(match['modifiedOn'])
+
+        for match in match_data:
+            for team in match['teams']:
+                if team['teamNumber'] not in modified_on_match_data:
+                    modified_on_match_data[team['teamNumber']] = match['modifiedOn']
 
         matrix_builder = MatrixBuilder(match_data)
         matrix_builder.create_binary_and_score_matrices()
@@ -95,7 +99,8 @@ class FirstAPI:
             team_stats.teleOPR = teams_tele[matrix_builder.team_indices[team]]
             team_stats.endgameOPR = teams_endgame[matrix_builder.team_indices[team]]
             team_stats.overallOPR = team_stats.autoOPR + team_stats.teleOPR
-            team_stats.profileUpdate = modified_on_match_data[matrix_builder.team_indices[team]]
+            if len(modified_on_match_data) > 0:
+                team_stats.profileUpdate = modified_on_match_data[team_stats.teamNumber]
             event.teams.append(team_stats)
 
         return event
