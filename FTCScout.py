@@ -17,8 +17,13 @@ class FTCScout(discord.Client):
         self.commands = Commands(self)
 
     async def setup_hook(self):
-        await self.tree.sync()
-        print("Slash commands synced successfully!")
+        if self.debug_mode:
+            # Use a separate command tree for the development environment
+            self.tree.copy_global_to(guild=discord.Object(id=os.getenv("DEV_SERVER_ID")))
+            await self.tree.sync(guild=discord.Object(id=os.getenv("DEV_SERVER_ID")))
+        else:
+            # Use the global command tree for the production environment
+            await self.tree.sync()
         self._load_favorite_teams()
 
     async def on_ready(self):
@@ -49,15 +54,14 @@ class FTCScout(discord.Client):
         print("Favorite teams loaded.")
 
     def run_bot(self):
-        self.commands.setup_commands()
-        self.key = os.getenv('API_KEY')
+        self.key = os.getenv('DISCORD_TOKEN')
         if not self.key:
-            raise EnvironmentError("Environment variable API_KEY is required.")
+            raise EnvironmentError("Environment variable DISCORD_TOKEN is required.")
         self.run(self.key)
 
         
 
 if __name__ == '__main__':
     bot = FTCScout()
-    bot.set_debug_mode(True, 1214734647695646754)
+    bot.set_debug_mode(True, int(os.getenv("DEV_CHANNEL_ID")))
     bot.run_bot()

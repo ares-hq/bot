@@ -21,15 +21,3 @@ class PaginationView(discord.ui.View):
     async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.current_page = (self.current_page + 1) % len(self.pages)
         await interaction.response.edit_message(embed=self.pages[self.current_page])
-
-
-def create_multi_page_embed(title: str, description_list: list, color: discord.Color, items_per_page: int = 10):
-    pages = []
-    for i in range(0, len(description_list), items_per_page):
-        embed = discord.Embed(
-            title=title,
-            description="\n".join(description_list[i:i+items_per_page]),
-            color=color
-        )
-        pages.append(embed)
-    return pages
