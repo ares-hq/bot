@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+import asyncio
 import os
 from Discord.commands import Commands
 from Discord.BotState import State
@@ -29,7 +30,25 @@ class FTCScout(commands.Bot):
         else:
             # Use the global command tree for the production environment
             await self.tree.sync()
-        self._load_favorite_teams()
+        # self._load_favorite_teams()
+
+    async def retry_sync(self, guild=None, retries=5, backoff_factor=2):
+        for attempt in range(retries):
+            try:
+                print(f"Syncing commands (attempt {attempt + 1}/{retries})...")
+                if guild:
+                    await self.tree.sync(guild=guild)
+                else:
+                    await self.tree.sync()
+                return
+            except discord.HTTPException as e:
+                if e.status == 429:
+                    retry_after = e.retry_after if hasattr(e, 'retry_after') else (backoff_factor ** attempt)
+                    print(f"Rate limited. Retrying in {retry_after:.2f} seconds...")
+                    await asyncio.sleep(retry_after)
+                else:
+                    raise e
+        print("Failed to sync commands after multiple attempts.")
 
     async def on_ready(self):
         print(f"{self.user.name} ({self.user.id}) is now live in {len(self.guilds)} servers!")
@@ -43,19 +62,19 @@ class FTCScout(commands.Bot):
         self.debug_mode = enabled
         self.debug_channel_id = channel_id
 
-    def _load_favorite_teams(self):
-        self.favorite_teams = {}
-        for guild in self.guilds:
-            for member in guild.members:
-                if member.bot and member.nick:
-                    if member.nick.startswith("Team ") and member.nick.endswith(" Bot"):
-                        try:
-                            team_number = int(member.nick.split(" ")[1])
-                            self.favorite_teams[guild.id] = team_number
-                            print(f"Added team {team_number} for guild {guild.id}")
-                        except ValueError:
-                            continue
-        print(f"Favorite teams loaded ({len(self.favorite_teams)})")
+    # def _load_favorite_teams(self):
+    #     self.favorite_teams = {}
+    #     for guild in self.guilds:
+    #         for member in guild.members:
+    #             if member.bot and member.nick:
+    #                 if member.nick.startswith("Team ") and member.nick.endswith(" Bot"):
+    #                     try:
+    #                         team_number = int(member.nick.split(" ")[1])
+    #                         self.favorite_teams[guild.id] = team_number
+    #                         print(f"Added team {team_number} for guild {guild.id}")
+    #                     except ValueError:
+    #                         continue
+    #     print(f"Favorite teams loaded ({len(self.favorite_teams)})")
 
     def run_bot(self):
         self.key = os.getenv('DISCORD_TOKEN')

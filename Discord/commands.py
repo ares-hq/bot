@@ -32,9 +32,9 @@ class Commands:
                 cmdDeveloper(self.bot)
             ):
                 await self.bot.add_cog(cmd)
-            print("Slash Commands Setup Complete.")
+            print("Slash Commands Compiled.")
         except Exception as e:
-            print(f"Failed to setup commands: {e}")
+            print(f"Failed to Compile Commands: {e}")
 
 
 

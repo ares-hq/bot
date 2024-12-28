@@ -18,7 +18,7 @@ class Alliance:
         self.teamNums: list[int] = [self.team1.stats.teamNumber, self.team2.stats.teamNumber]
         self.teamNames: list[int] = [self.team1.info.teamName, self.team2.info.teamName]
 
-        self.scoreboard:str = [
+        self.scoreboard:list[str] = [
             f"{self.teamNums[0]}",
             f"{self.teamNums[1]}",
             f"{self.stats.autoOPR:.0f}",
