@@ -1,33 +1,38 @@
 import discord
-from discord import app_commands
+from discord.ext import commands
 from dotenv import load_dotenv
 import os
 from Discord.commands import Commands
+from Discord.BotState import State
 
 load_dotenv()
-class FTCScout(discord.Client):
+
+class FTCScout(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
-        super().__init__(intents=intents)
-        self.tree = app_commands.CommandTree(self)
+        super().__init__(command_prefix="/", intents=intents)
         self.debug_mode = False
         self.debug_channel_id = None
         self.favorite_teams = {}
-        self.commands = Commands(self)
+        self.slash_commands = Commands(self)
 
     async def setup_hook(self):
+        await self.slash_commands.setup()
         if self.debug_mode:
             # Use a separate command tree for the development environment
-            self.tree.copy_global_to(guild=discord.Object(id=os.getenv("DEV_SERVER_ID")))
-            await self.tree.sync(guild=discord.Object(id=os.getenv("DEV_SERVER_ID")))
+            dev_guild = discord.Object(id=os.getenv("DEV_SERVER_ID"))
+            self.tree.copy_global_to(guild=dev_guild)
+            self.set_debug_mode(True, int(os.getenv("DEV_CHANNEL_ID")))
+            print("Development Mode: Active")
+            await self.tree.sync(guild=dev_guild)
         else:
             # Use the global command tree for the production environment
             await self.tree.sync()
         self._load_favorite_teams()
 
     async def on_ready(self):
-        print(f"{self.user.name} ({self.user.id}) is live!")
+        print(f"{self.user.name} ({self.user.id}) is now live in {len(self.guilds)} servers!")
         await self.change_presence(activity=discord.Game("Into the Deep 🌊"))
 
     async def on_message(self, message: discord.Message):
@@ -43,7 +48,6 @@ class FTCScout(discord.Client):
         for guild in self.guilds:
             for member in guild.members:
                 if member.bot and member.nick:
-                    # print(f"Checking bot nickname: {member.nick}")
                     if member.nick.startswith("Team ") and member.nick.endswith(" Bot"):
                         try:
                             team_number = int(member.nick.split(" ")[1])
@@ -51,15 +55,13 @@ class FTCScout(discord.Client):
                             print(f"Added team {team_number} for guild {guild.id}")
                         except ValueError:
                             continue
-        print("Favorite teams loaded.")
+        print(f"Favorite teams loaded ({len(self.favorite_teams)})")
 
     def run_bot(self):
         self.key = os.getenv('DISCORD_TOKEN')
         if not self.key:
             raise EnvironmentError("Environment variable DISCORD_TOKEN is required.")
         self.run(self.key)
-
-        
 
 if __name__ == '__main__':
     bot = FTCScout()

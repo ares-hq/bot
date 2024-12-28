@@ -3,47 +3,63 @@ from datetime import datetime
 
 
 # Visual Helper Class
-class BotState:
-    def __init__(self):
-        pass
+class State:
+    VERSION = "v2.0.0"
+    DEVELOPERS = "<@291420737204649985> and <@751915057973035058>"
+    NAME = "FTCScout"
+    AVATAR = "https://via.placeholder.com/150"
+    SIGNATURE = f"Powered by {NAME} {VERSION}"
+    CHANNELS = ["bot", "bot-channel", str(NAME).lower(), "ftc-scout", "scout", "ftc", "general"]
+    COMMANDS ={
+            "team": {
+                "Description": "Displays team *FIRST* information",
+                "Usage": "/team <team_number>"
+            },
+            "match": {
+                "Description": "OPR-Based Match Prediction",
+                "Usage": "/match <red_alliance> <blue_alliance>"
+            },
+            "favorite": {
+                "Description": "Marks a team as the server favorite. Enter a team a second time to remove them from the list.",
+                "Permissions Required": "Manage Nicknames",
+                "Usage": "/favorite <team_number>"
+            }
+        }
+    FIRST_BLACK = discord.Color(0x231F20)
+    FIRST_BLUE = discord.Color(0x0066B3)
+    FIRST_RED = discord.Color(0xED1C24)
+    FIRST_GRAY = discord.Color(0x9A989A)
+    FAVORITE = discord.Color(0xFFD700)
 
-    @property
-    def VERSION(self):
-        return "v2.0.0"
-    
-    @property
-    def DEVELOPERS(self):
-        return "<@291420737204649985> and <@751915057973035058>"
-    
-    @property
-    def BOT_NAME(self):
-        return "FTCScout Bot"
-    
-    @property
-    def BOT_AVATAR(self):
-        return "https://via.placeholder.com/150"
-    
-    @property
-    def REQUEST_TIME(self):
-        return datetime.now()
-    
-    @property
-    def ERROR(self):
-        description = "An error occurred while processing the request. Try again later."
+    REQUEST_TIME = datetime.now()
+
+    @staticmethod
+    def ERROR(title="Error", description="An error has occurred. Please try again later.") -> discord.Embed:
+        
         color = discord.Color.red()
-        embed = discord.Embed(title="ERROR",description=description, color=color, timestamp=self.REQUEST_TIME)
+        embed = discord.Embed(title=title,description=description, color=color, timestamp=State.REQUEST_TIME)
         return embed
     
-    @property
-    def SUCCESS(self):
-        description = "Request Successfull!"
+    @staticmethod
+    def SUCCESS(title="Success", description="")-> discord.Embed:
         color = discord.Color.green()
-        embed = discord.Embed(title="SUCCESS",description=description, color=color, timestamp=self.REQUEST_TIME)
+        embed = discord.Embed(title=title, description=description, color=color, timestamp=State.REQUEST_TIME)
         return embed
     
-    @property
-    def WARNING(self):
-        description = "Double check your input and try again. Information may be missing or incorrect."
+    @staticmethod
+    def WARNING(title="Warning", description = "Double check your input and try again. Information may be missing or incorrect.")-> discord.Embed:
         color = discord.Color.orange()
-        embed = discord.Embed(title="WARNING",description=description, color=color, timestamp=self.REQUEST_TIME)
+        embed = discord.Embed(title=title,description=description, color=color, timestamp=State.REQUEST_TIME)
+        return embed
+    
+    @staticmethod
+    def INFO(title="Info", description="")-> discord.Embed:
+        color = discord.Color.blue()
+        embed = discord.Embed(title=title,description=description, color=color, timestamp=State.REQUEST_TIME)
+        return embed
+    
+    @staticmethod
+    def ANNOUNCEMENT(title="Announcement", description="")-> discord.Embed:
+        color = discord.Color.teal()
+        embed = discord.Embed(title=title,description=description, color=color, timestamp=State.REQUEST_TIME)
         return embed
