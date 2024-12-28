@@ -1,7 +1,6 @@
-from .API_Library.FirstAPI import FirstAPI
-from .API_Library.APIParams import APIParams
+from .API_Library import FirstAPI, APIParams
 from datetime import datetime
-from .API_Library.API_Models.Team import Stats
+from .API_Library.API_Models import Stats
 import json
 
 '''

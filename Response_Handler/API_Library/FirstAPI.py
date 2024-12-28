@@ -1,11 +1,9 @@
-import requests
-from .APIParams import APIParams
-from .API_Models.Team import Info, Stats
-from .API_Models.Event import Event
 import os
+import requests
 from dotenv import load_dotenv
-from .RobotMath.MatrixMath import MatrixMath as mm
-from .RobotMath.TeamMatrixBuilder import MatrixBuilder
+from .APIParams import APIParams
+from .API_Models import Info, Stats, Event
+from .RobotMath import MatrixBuilder, MatrixMath as mm
 
 '''
 Example usage(12/23/24):

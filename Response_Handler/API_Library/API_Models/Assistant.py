@@ -1,7 +1,5 @@
 import requests
-from .Season import History
-from .Event import Event
-from .Team import Stats, Summary
+from . import Event, Team, Season, Stats, Summary, Alliance, Match, History
 
 
 '''

@@ -1,5 +1,4 @@
-from .API_Library.API_Models.Team import Stats, Info,Summary
-from .API_Library.API_Models.Event import Alliance, Match
+from .API_Library.API_Models import Summary, Alliance, Match
 from .FindData import FindData
 
 class HandleMessageResponse:
@@ -23,7 +22,7 @@ class HandleMessageResponse:
             elif team_summary.stats is None:
                 raise KeyError(f"Missing data - Team Stats")
                    
-            return  team_summary # Summary Object
+            return team_summary # Summary Object
         
         except KeyError as e:
             raise KeyError(f"Error in team_message_data for team number {teamNumber}") from e

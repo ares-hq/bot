@@ -1,9 +1,5 @@
-from .Slash_Commands.cmdFavorite import cmdFavorite
-from .Slash_Commands.cmdMatch import cmdMatch
-from .Slash_Commands.cmdTeam import cmdTeam
-from .Slash_Commands.cmdHelp import cmdHelp
-
-from .BotState import BotState
+from .Slash_Commands import cmdMatch, cmdTeam, cmdFavorite, cmdHelp, cmdDeveloper
+from .BotState import State
 
 #####################################################
 # Feature Request (API):
@@ -24,18 +20,18 @@ from .BotState import BotState
 class Commands:
     def __init__(self, bot):
         self.bot = bot
-        self.visual = BotState()
-        self.setup_commands()
+        self.visual = State()
 
-    def setup_commands(self):
+    async def setup(self):
         try:
             for cmd in (
-                cmdTeam(self.bot, self.visual),
-                cmdMatch(self.bot, self.visual),
-                cmdFavorite(self.bot, self.visual),
-                cmdHelp(self.bot, self.visual)
+                cmdTeam(self.bot),
+                cmdMatch(self.bot),
+                cmdFavorite(self.bot),
+                cmdHelp(self.bot),
+                cmdDeveloper(self.bot)
             ):
-                cmd.setup()
+                await self.bot.add_cog(cmd)
             print("Slash Commands Setup Complete.")
         except Exception as e:
             print(f"Failed to setup commands: {e}")
