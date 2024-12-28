@@ -148,6 +148,7 @@ class Summary:
             f"Team Name: **{self.info.teamName}**\n"
             f"Sponsors: **{self.info.sponsors}**\n"
             f"Location: **{self.info.location}**\n"
+            f"\n"
             f"Auto OPR: **{self.stats.autoOPR:.2f}**\n"
             f"Tele OPR: **{self.stats.teleOPR:.2f}**\n"
             f"Endgame OPR: **{self.stats.endgameOPR:.2f}**\n"
