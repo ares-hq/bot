@@ -10,22 +10,30 @@ class HandleMessageResponse:
     """
     
     @staticmethod
-    def team_message_data(teamNumber:str)->Summary:
+    def team_message_data(team_number:str)->Summary:
         """Returns a Team Summary Object containing the data necessary for the team message."""
-        find_team_data = FindData("world_opr_scores_.json")
+        find_data = FindData("world_opr_scores_.json")
         try:
-            team_summary = (find_team_data.find_team_stats_from_json(teamNumber) + 
-                            find_team_data.callForTeamInfo(teamNumber))
+            team_summary = (find_data.team_stats_from_json(team_number) + 
+                            find_data.team_info(team_number))
             
             if team_summary.info is None:
                 raise KeyError(f"Missing data - Team Info")
             elif team_summary.stats is None:
                 raise KeyError(f"Missing data - Team Stats")
+            
+            # Check if all float values in stats are zero
+            if all(getattr(team_summary.stats, attr) == 0.0 for attr in ['autoOPR', 'teleOPR', 'endgameOPR', 'overallOPR']):
+                raise ValueError(f"All float values in team stats are zero for team number {team_number}")
+            
+            # Check if team number is empty or zero
+            if not team_summary.stats.teamNumber or team_summary.stats.teamNumber == 0:
+                raise ValueError(f"Invalid team number {team_summary.stats.teamNumber}")
                    
             return team_summary # Summary Object
         
         except KeyError as e:
-            raise KeyError(f"Error in team_message_data for team number {teamNumber}") from e
+            raise KeyError(f"Error in team_message_data for team number {team_number}") from e
 
     def form_alliance(color:str, teams:list[str])->Alliance:
         """Creates an Alliance object from a list of team numbers"""
