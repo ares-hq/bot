@@ -9,7 +9,6 @@ class Info:
         teamName (str): The name of the team.
         sponsors (str): The sponsors of the team.
         location (str): The location of the team.
-        profileUpdate (str): The date of the last profile update.
     """
     teamName: str = field(default_factory=str)
     sponsors: str = field(default_factory=str)
@@ -76,6 +75,8 @@ class Stats:
         """
         if name in ['autoRank', 'teleRank', 'endgameRank', 'overallRank']:
             rank = getattr(self, f"_{name}")
+            if isinstance(rank, str) and rank[-2:] in ['st', 'nd', 'rd', 'th']:
+                return rank
             if str(rank).endswith('3'):
                 return str(rank) + 'rd'
             elif str(rank).endswith('2'):
@@ -185,7 +186,7 @@ class Summary:
         self.info.teamName = self.info.teamName or ""
         self.info.sponsors = self.info.sponsors or ""
         self.info.location = self.info.location or ""
-        self.info.profileUpdate = self.info.profileUpdate or ""
+        self.stats.profileUpdate = self.stats.profileUpdate or ""
 
     def __getitem__(self, key):
         """
@@ -207,9 +208,9 @@ class Summary:
             f"Sponsors: **{self.info.sponsors}**\n"
             f"Location: **{self.info.location}**\n"
             f"\n"
-            f"Auto OPR: **{self.stats.autoOPR:.2f} ({self.stats.autoRank})**\n"
-            f"Tele OPR: **{self.stats.teleOPR:.2f} ({self.stats.teleRank})**\n"
-            f"Endgame OPR: **{self.stats.endgameOPR:.2f} ({self.stats.endgameRank})**\n"
-            f"Overall OPR: **{self.stats.overallOPR:.2f} ({self.stats.overallRank})**\n"
-            f"Last Updated: *{self.stats.profileUpdate.replace("T", " ")}*\n"
+            f"Auto OPR: **{self.stats.autoOPR:.2f}** ({self.stats.autoRank})\n"
+            f"Tele OPR: **{self.stats.teleOPR:.2f}** ({self.stats.teleRank})\n"
+            f"Endgame OPR: **{self.stats.endgameOPR:.2f}** ({self.stats.endgameRank})\n"
+            f"Overall OPR: **{self.stats.overallOPR:.2f}** ({self.stats.overallRank})\n"
+            f"Last Updated: {self.stats.profileUpdate.replace("T", " ")}\n"
         )

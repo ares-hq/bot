@@ -16,7 +16,7 @@ class Alliance:
         
         self.stats: Stats = self.team1.stats + self.team2.stats
         self.teamNums: list[int] = [self.team1.stats.teamNumber, self.team2.stats.teamNumber]
-        self.teamNames: list[int] = [self.team1.info.teamName, self.team2.info.teamName]
+        self.teamNames: list[str] = [self.team1.info.teamName, self.team2.info.teamName]
 
         self.scoreboard:list[str] = [
             f"{self.teamNums[0]}",
