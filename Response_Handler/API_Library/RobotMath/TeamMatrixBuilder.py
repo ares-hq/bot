@@ -9,6 +9,7 @@ class MatrixBuilder():
         self.binary_matrix = None
         self.auto_matrix = np.zeros((self.num_matches * 2), dtype=int)
         self.tele_matrix = np.zeros((self.num_matches * 2), dtype=int)
+        self.endgame_matrix = np.zeros((self.num_matches * 2), dtype=int)
         self.team_indices = None
         
     def create_team_matrices(self):
@@ -34,6 +35,8 @@ class MatrixBuilder():
             blue_score = match.get('scoreBlueFinal', 0) - match.get('scoreBlueAuto', 0) - match.get('scoreRedFoul', 0)
             red_score_auto = match.get('scoreRedAuto', 0)
             blue_score_auto = match.get('scoreBlueAuto', 0)
+            red_score_endgame = match.get('scoreRedEndgame', 0)
+            blue_score_endgame = match.get('scoreBlueEndgame', 0)
             
             for team in match['teams']:
                 team_idx = self.team_indices[team['teamNumber']]
@@ -53,4 +56,5 @@ class MatrixBuilder():
             self.tele_matrix[2 * match_idx + 1] = blue_score
             self.auto_matrix[2 * match_idx] = red_score_auto
             self.auto_matrix[2 * match_idx + 1] = blue_score_auto
-        
+            self.endgame_matrix[2 * match_idx] = red_score_endgame
+            self.endgame_matrix[2 * match_idx + 1] = blue_score_endgame        

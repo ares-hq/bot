@@ -64,22 +64,42 @@ class FirstAPI:
         assert isinstance(params, APIParams)
         url = self.url_builder.build(*params.to_path_segments())
         response = self.api_request(url)
-        match_data = response.json().get('matches', [])
+        match_data = response.json().get('matches')
+
+        endgameParams = APIParams(
+            path_segments=[params.path_segments[0], 'scores', params.path_segments[2], 'qual'],
+        )
+
+        endgameStats = self.get_endgame_stats(endgameParams)
+        modified_on_match_data = {}
+        for match, endgame in zip(match_data, endgameStats):
+            match["scoreRedEndgame"] = endgame["red"]
+            match["scoreBlueEndgame"] = endgame["blue"]
+
+        for match in match_data:
+            for team in match['teams']:
+                if team['teamNumber'] not in modified_on_match_data:
+                    modified_on_match_data[team['teamNumber']] = match['modifiedOn']
 
         matrix_builder = MatrixBuilder(match_data)
         matrix_builder.create_binary_and_score_matrices()
 
         event = Event()
-        event.eventCode = response
+        event.eventCode = params.to_path_segments()[2]
         
         teams_auto = mm.LSE(matrix_builder.binary_matrix, matrix_builder.auto_matrix)
         teams_tele = mm.LSE(matrix_builder.binary_matrix, matrix_builder.tele_matrix)
+        teams_endgame = mm.LSE(matrix_builder.binary_matrix, matrix_builder.endgame_matrix)
         for team in matrix_builder.teams:
             team_stats = Stats()
+            team_stats.teamNumber = team
             team_stats.autoOPR = teams_auto[matrix_builder.team_indices[team]]
             team_stats.teleOPR = teams_tele[matrix_builder.team_indices[team]]
+            team_stats.endgameOPR = teams_endgame[matrix_builder.team_indices[team]]
             team_stats.overallOPR = team_stats.autoOPR + team_stats.teleOPR
-            event.teams[team] = team_stats
+            if len(modified_on_match_data) > 0:
+                team_stats.profileUpdate = modified_on_match_data[team_stats.teamNumber]
+            event.teams.append(team_stats)
 
         return event
     
@@ -88,10 +108,40 @@ class FirstAPI:
         Get a list of events for the given season.
         """
         apiParams = APIParams(path_segments=[year, 'events'])
-        url = self.url_builder.build(apiParams)
+        url = self.url_builder.build(*apiParams.to_path_segments())
         response = self.api_request(url)
-        events = response.json().get("events", [])
+        events = response.json().get('events')
         return [event.get("code") for event in events]
+
+    def get_last_update(self):
+        """
+        Get the last update time for the API.
+        """
+        url = self.url_builder.build('last_update')
+        response = self.api_request(url)
+        return response.json().get('lastUpdate')
+    
+    def get_endgame_stats(self, params):
+        '''
+        APIParams(
+            path_segments=[{year}, 'scores', {event}, {tournament level}],
+        )
+        '''
+        assert isinstance(params, APIParams)
+        url = self.url_builder.build(*params.to_path_segments())
+        response = self.api_request(url)
+        response = response.json().get('matchScores')
+        
+        result = []
+        for match in response:
+            red_alliance = match["alliances"][1]
+            blue_alliance = match["alliances"][0]
+
+            red_sum = red_alliance["teleopParkPoints"] + red_alliance["teleopAscentPoints"]
+            blue_sum = blue_alliance["teleopParkPoints"] + blue_alliance["teleopAscentPoints"]
+            result.append({"matchNumber": match["matchNumber"], "red": red_sum, "blue": blue_sum})
+
+        return result               
 
 class URLBuilder:
     """

@@ -14,7 +14,6 @@ class Info:
     teamName: str = field(default_factory=str)
     sponsors: str = field(default_factory=str)
     location: str = field(default_factory=str)
-    profileUpdate: str = field(default_factory=str)
 
 @dataclass
 class Stats:
@@ -33,6 +32,11 @@ class Stats:
     teleOPR: float = field(default_factory=float)
     endgameOPR: float = field(default_factory=float)
     overallOPR: float = field(default_factory=float)
+    autoRank: float = field(default_factory=float)
+    teleRank: float = field(default_factory=float)
+    endgameRank: float = field(default_factory=float)
+    overallRank: float = field(default_factory=float)
+    profileUpdate: str = field(default_factory=str)
 
     def __post_init__(self):
         """
@@ -43,6 +47,50 @@ class Stats:
         self.teleOPR = self.teleOPR or 0
         self.endgameOPR = self.endgameOPR or 0
         self.overallOPR = self.overallOPR or self.autoOPR + self.teleOPR + self.endgameOPR
+
+        self._autoRank = self.autoRank
+        self._teleRank = self.teleRank
+        self._endgameRank = self.endgameRank
+        self._overallRank = self.overallRank
+
+    def __getattr__(self, name):
+        """
+        Example usage:
+        
+        >>> team = Stats(
+        ...     teamNumber=1234,
+        ...     autoOPR=10.5,
+        ...     teleOPR=20.3,
+        ...     endgameOPR=15.2,
+        ...     overallOPR=46.0,
+        ...     autoRank=1,
+        ...     teleRank=2,
+        ...     endgameRank=3,
+        ...     overallRank=4,
+        ...     profileUpdate="2023-10-01"
+        ... )
+        >>> print(team.autoRank)  # Output: 1st
+        >>> print(team.teleRank)  # Output: 2nd
+        >>> print(team.endgameRank)  # Output: 3rd
+        >>> print(team.overallRank)  # Output: 4th
+        """
+        if name in ['autoRank', 'teleRank', 'endgameRank', 'overallRank']:
+            rank = getattr(self, f"_{name}")
+            if str(rank).endswith('3'):
+                return str(rank) + 'rd'
+            elif str(rank).endswith('2'):
+                return str(rank) + 'nd'
+            elif str(rank).endswith('1'):
+                return str(rank) + 'st'
+            else:
+                return str(rank) + 'th'
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
+    def __setattr__(self, name, value):
+        if name in ['autoRank', 'teleRank', 'endgameRank', 'overallRank']:
+            super().__setattr__(f"_{name}", value)
+        else:
+            super().__setattr__(name, value)
 
     
     def __add__(self, other):
@@ -78,10 +126,20 @@ class Stats:
         return (
             f"Team Number: **{self.teamNumber}**\n"
             f"Auto OPR: **{self.autoOPR:.2f}**\n"
+            f"Auto Rank: **{self.autoRank}**\n"
             f"Tele OPR: **{self.teleOPR:.2f}**\n"
+            f"Tele Rank: **{self.teleRank}**\n"
             f"Endgame OPR: **{self.endgameOPR:.2f}**\n"
+            f"Endgame Rank: **{self.endgameRank}**\n"
             f"Overall OPR: **{self.overallOPR:.2f}**\n"
+            f"Overall Rank: **{self.overallRank}**\n"
         )
+    
+    def __repr__(self):
+        """
+        Returns a string representation of the Stats object for debugging.
+        """
+        return self.__str__()
 
 @dataclass
 class Summary:
@@ -145,13 +203,13 @@ class Summary:
         Returns a string representation of the Summary object.
         """
         return (
-            f"Team Name: **{self.info.teamName}**\n"
+            f"Name: **{self.info.teamName}**\n"
             f"Sponsors: **{self.info.sponsors}**\n"
             f"Location: **{self.info.location}**\n"
             f"\n"
-            f"Auto OPR: **{self.stats.autoOPR:.2f}**\n"
-            f"Tele OPR: **{self.stats.teleOPR:.2f}**\n"
-            f"Endgame OPR: **{self.stats.endgameOPR:.2f}**\n"
-            f"Overall OPR: **{self.stats.overallOPR:.2f}**\n"
-            f"Last Updated: *{self.info.profileUpdate}*\n"
+            f"Auto OPR: **{self.stats.autoOPR:.2f} ({self.stats.autoRank})**\n"
+            f"Tele OPR: **{self.stats.teleOPR:.2f} ({self.stats.teleRank})**\n"
+            f"Endgame OPR: **{self.stats.endgameOPR:.2f} ({self.stats.endgameRank})**\n"
+            f"Overall OPR: **{self.stats.overallOPR:.2f} ({self.stats.overallRank})**\n"
+            f"Last Updated: *{self.stats.profileUpdate.replace("T", " ")}*\n"
         )
