@@ -29,8 +29,10 @@ class cmdFavorite(commands.Cog):
         embed = discord.Embed(title="Favorite Teams", color=State.FAVORITE)
         if not favorite_teams:
             embed.description = "No favorite teams set."
+            embed.set_footer(text="Run the command with a team number to add it to favorites.")
         else:
             embed.description = "\n".join([f"{team['name']} ({team['number']}) ⭐" for team in favorite_teams])
+            embed.set_footer(text="Re-run the command with a team number to remove it from favorites.")
 
         await interaction.response.send_message(embed=embed, ephemeral=False)
 

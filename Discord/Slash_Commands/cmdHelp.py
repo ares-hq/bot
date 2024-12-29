@@ -16,8 +16,8 @@ class cmdHelp(commands.Cog):
         pages = []
 
         landing_page = discord.Embed(
-            title="FTCScout Bot Help",
-            description="Welcome to the FTCScout Bot! Here you can find information about the available commands.",
+            title=f"{State.NAME} Bot Help",
+            description=f"Welcome to the {State.NAME} Bot! Here you can find information about the available commands.",
             color=discord.Color.lighter_grey()
         )
         landing_page.set_thumbnail(url=self.bot.user.avatar.url)
