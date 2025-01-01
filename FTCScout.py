@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 import asyncio
 import os
 from Discord.commands import Commands
-from Discord.BotState import State
+from Discord import State
 
 load_dotenv()
 
@@ -26,11 +26,10 @@ class FTCScout(commands.Bot):
             self.tree.copy_global_to(guild=dev_guild)
             self.set_debug_mode(True, int(os.getenv("DEV_CHANNEL_ID")))
             print("Development Mode: Active")
-            await self.tree.sync(guild=dev_guild)
+            await self.retry_sync(guild=dev_guild)
         else:
             # Use the global command tree for the production environment
-            await self.tree.sync()
-        # self._load_favorite_teams()
+            await self.retry_sync()
 
     async def retry_sync(self, guild=None, retries=5, backoff_factor=2):
         for attempt in range(retries):
@@ -53,6 +52,8 @@ class FTCScout(commands.Bot):
     async def on_ready(self):
         print(f"{self.user.name} ({self.user.id}) is now live in {len(self.guilds)} servers!")
         await self.change_presence(activity=discord.Game("Into the Deep 🌊"))
+        # for guild in self.guilds:
+        #     await guild.me.edit(nick=None) # Reset bot nickname
 
     async def on_message(self, message: discord.Message):
         if self.debug_mode and message.channel.id == self.debug_channel_id:
@@ -63,17 +64,7 @@ class FTCScout(commands.Bot):
         self.debug_channel_id = channel_id
 
     # def _load_favorite_teams(self):
-    #     self.favorite_teams = {}
-    #     for guild in self.guilds:
-    #         for member in guild.members:
-    #             if member.bot and member.nick:
-    #                 if member.nick.startswith("Team ") and member.nick.endswith(" Bot"):
-    #                     try:
-    #                         team_number = int(member.nick.split(" ")[1])
-    #                         self.favorite_teams[guild.id] = team_number
-    #                         print(f"Added team {team_number} for guild {guild.id}")
-    #                     except ValueError:
-    #                         continue
+    #     pass
     #     print(f"Favorite teams loaded ({len(self.favorite_teams)})")
 
     def run_bot(self):

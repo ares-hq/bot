@@ -47,31 +47,22 @@ class cmdFavorite(commands.Cog):
             favorite_teams = self.bot.favorite_teams.setdefault(server_id, [])
             value = {"name": team_data.info.teamName, "number": team_number}  # Store as a dictionary
 
-            # Check if the team_number is in any of the favorite_teams entries
+            # Check if the team_number is in the favorite_teams list
             if any(team['number'] == team_number for team in favorite_teams):
+                # Remove the team if it already exists
                 favorite_teams = [team for team in favorite_teams if team['number'] != team_number]
             else:
+                # Add the team if it doesn't exist
                 favorite_teams.append(value)
 
             self.bot.favorite_teams[server_id] = favorite_teams  # Update the favorite teams list
 
-            await self.update_nickname(interaction, favorite_teams, team_number)
             await self.show_favorite_teams(interaction, server_id)
 
         except Exception as e:
             if self.bot.debug_mode:
                 print(e)
             embed = State.ERROR(title="Error", description="Team Number must be valid.")
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    async def update_nickname(self, interaction: discord.Interaction, favorite_teams: list, team_number: str):
-        try:
-            if len(favorite_teams) == 1:
-                await interaction.guild.me.edit(nick=f"Team {team_number} Bot")
-            else:
-                await interaction.guild.me.edit(nick=None)
-        except discord.errors.Forbidden:
-            embed = State.WARNING(title="Warning", description='Could not change nickname: Missing permissions')
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
 async def setup(bot):

@@ -33,7 +33,7 @@ class cmdMatch(commands.Cog):
             def trim_string(string, max_length=44):
                 return string[:max_length] + '...' if len(string) > max_length else string
 
-            color = State.FIRST_GRAY if winner == "Tie" or not blue_alliance_teams else (State.FIRST_RED if winner == "Red" else State.FIRST_BLUE)
+            color = State.WHITE if winner == "Tie" or not blue_alliance_teams else (State.CHALLENGE_RED if winner == "Red" else State.FIRST_BLUE)
 
             embed = discord.Embed(title="Match Scoreboard", color=color, timestamp=datetime.now())
             embed.add_field(name="Categories", value=f"```{'\n'.join(match.matchCategories)}```", inline=True)
@@ -50,7 +50,7 @@ class cmdMatch(commands.Cog):
             else:
                 redTeam1 = trim_string(f"{match.redAlliance.teamNames[0]}", max_length=31) + f" ({red_alliance_teams[0]})"
                 redTeam2 = trim_string(f"{match.redAlliance.teamNames[1]}", max_length=31) + f" ({red_alliance_teams[1]})"
-                embed.add_field(name="Red Alliance", value=f"```\n{redTeam1}\n{redTeam2}\n{'\n'.join(round_scores(match.redAlliance.scoreboard[2:]))}```", inline=True)
+                embed.add_field(name="Alliance", value=f"```\n{redTeam1}\n{redTeam2}\n{'\n'.join(round_scores(match.redAlliance.scoreboard[2:]))}```", inline=True)
 
             if self.bot.debug_mode:
                 print(match.__str__().strip())

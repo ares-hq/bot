@@ -29,10 +29,22 @@ class cmdTeam(commands.Cog):
             return
 
         lines = message.strip().split('\n')
+
+        favorite_teams = self.bot.favorite_teams.get(interaction.guild.id, [])
+
+        # Check if the team number is in the favorite teams list
+        if any(team['number'] == team_number for team in favorite_teams):
+            lines[0] += " ⭐"  # add star to favorite
+
+        ######
+        # Add future code to allow for favorite teams to be added and removed from the list using emojis
+        # Also the ability to add teams to the future "watch" list
+        ######
+
         embed = discord.Embed(
             title=f"Information for Team {team_number}",
             description="\n".join(lines[:-1]),
-            color=discord.Color.lighter_grey()
+            color=State.WHITE
         )
         embed.set_footer(text=lines[-1])
         await interaction.response.send_message(embed=embed)
