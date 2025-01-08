@@ -6,3 +6,4 @@ python-dotenv
 markdown
 pytz
 numpy
+html2image

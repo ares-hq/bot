@@ -26,28 +26,10 @@ class FTCScout(commands.Bot):
             self.tree.copy_global_to(guild=dev_guild)
             self.set_debug_mode(True, int(os.getenv("DEV_CHANNEL_ID")))
             print("Development Mode: Active")
-            await self.retry_sync(guild=dev_guild)
+            await self.tree.sync(guild=dev_guild)
         else:
             # Use the global command tree for the production environment
-            await self.retry_sync()
-
-    async def retry_sync(self, guild=None, retries=5, backoff_factor=2):
-        for attempt in range(retries):
-            try:
-                print(f"Syncing commands (attempt {attempt + 1}/{retries})...")
-                if guild:
-                    await self.tree.sync(guild=guild)
-                else:
-                    await self.tree.sync()
-                return
-            except discord.HTTPException as e:
-                if e.status == 429:
-                    retry_after = e.retry_after if hasattr(e, 'retry_after') else (backoff_factor ** attempt)
-                    print(f"Rate limited. Retrying in {retry_after:.2f} seconds...")
-                    await asyncio.sleep(retry_after)
-                else:
-                    raise e
-        print("Failed to sync commands after multiple attempts.")
+            await self.tree.sync()
 
     async def on_ready(self):
         print(f"{self.user.name} ({self.user.id}) is now live in {len(self.guilds)} servers!")
