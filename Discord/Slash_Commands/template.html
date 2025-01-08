@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{title}}</title>
+    <style>
+        @font-face {
+            font-family: 'Roboto';
+            font-style: normal;
+            font-weight: 400;
+            src: local('Roboto'), local('Roboto-Regular'), url(https://fonts.gstatic.com/s/roboto/v18/KFOmCnqEu92Fr1Mu72xKOzY.woff2) format('woff2');
+        }
+        body {
+            background-color: #2B2D31;
+            font-family: 'Roboto', Arial;
+        }
+        html, body {
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+        }
+        .container {
+            width: 800px;
+            margin: 0 auto;
+            padding: 10px;
+            background-color: #2B2D31;
+        }
+        .scoreboard {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+        .team {
+            width: 30%;
+            padding: 20px;
+            color: white;
+            text-align: center;
+        }
+        .red-alliance {
+            background-color: #ED1C24;
+        }
+        .blue-alliance {
+            background-color: #0066B3;
+        }
+        .categories {
+            width: 30%;
+            background-color: #9A989A;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            font-weight: bold;
+            border-left: 5px solid black;
+            border-right: 5px solid black;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        h3 {
+            color: white;
+            text-align: center;
+            display: block;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- <h1>{{title}}</h1> -->
+        <!-- <h3>{{description}}</h3> -->
+        <div class="scoreboard">
+            <div class="team red-alliance">
+                <h2>RED</h2>
+                <p>{{red_team_1}}</p>
+                <p>{{red_team_2}}</p>
+            </div>
+            <div class="categories">
+                <h2>ALLIANCE</h2>
+                <p>TEAM 1</p>
+                <p>TEAM 2</p>    
+            </div>
+            <div class="team blue-alliance">
+                <h2>BLUE</h2>
+                <p>{{blue_team_1}}</p>
+                <p>{{blue_team_2}}</p>
+            </div>
+        </div>
+        <div class="scoreboard">
+            <div class="team red-alliance">
+                <p>{{red_auto}}</p>
+                <p>{{red_teleop}}</p>
+                <p>{{red_endgame}}</p>
+                <p>{{red_penalties}}</p>
+            </div>
+            <div class="categories">
+                <p>AUTO</p>
+                <p>TELEOP</p>
+                <p>ENDGAME</p>
+                <p><sub>← BLUE</sub>&nbsp;&nbsp;&nbsp;PENALTIES&nbsp;&nbsp;&nbsp;<sub>RED →</sub></p>
+            </div>
+            <div class="team blue-alliance">
+                <p>{{blue_auto}}</p>
+                <p>{{blue_teleop}}</p>
+                <p>{{blue_endgame}}</p>
+                <p>{{blue_penalties}}</p>
+            </div>
+        </div>
+        <div class="scoreboard">
+            <div class="team red-alliance">
+                <h2>{{red_final}}</h2>
+            </div>
+            <div class="categories">
+                <h2>FINAL SCORE</h2>  
+            </div>
+            <div class="team blue-alliance">
+                <h2>{{blue_final}}</h2>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -24,6 +24,7 @@ class State:
                 "Usage": "/favorite <team_number>"
             }
         }
+    BROWSER = "edge"
     
     # COLOR SOURCE: https://www.firstinspires.org/sites/default/files/uploads/resource_library/brand/first-brand-guidelines-2020.pdf
     
@@ -51,7 +52,7 @@ class State:
     @staticmethod
     def ERROR(title="Error", description="An error has occurred. Please try again later.") -> discord.Embed:
         
-        color = State.FLL_RED
+        color = State.CHALLENGE_RED
         embed = discord.Embed(title=title,description=description, color=color, timestamp=State.REQUEST_TIME)
         return embed
     
