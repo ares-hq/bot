@@ -18,19 +18,19 @@ install_pip() {
 }
 
 # Function to check if Microsoft Edge is installed, and install if not
-install_edge_if_needed() {
-    if ! command -v microsoft-edge &> /dev/null; then
-        echo "Microsoft Edge not found. Installing Microsoft Edge..."
-        sudo apt update
-        sudo apt install -y wget
-        wget https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-stable/microsoft-edge-stable_109.0.1518.78-1_amd64.deb
-        sudo dpkg -i microsoft-edge-stable_109.0.1518.78-1_amd64.deb
-        sudo apt --fix-broken install -y
-        echo "Microsoft Edge installed."
-    else
-        echo "Microsoft Edge is already installed."
-    fi
-}
+# install_edge_if_needed() {
+#     if ! command -v microsoft-edge &> /dev/null; then
+#         echo "Microsoft Edge not found. Installing Microsoft Edge..."
+#         sudo apt update
+#         sudo apt install -y wget
+#         wget https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-stable/microsoft-edge-stable_109.0.1518.78-1_amd64.deb
+#         sudo dpkg -i microsoft-edge-stable_109.0.1518.78-1_amd64.deb
+#         sudo apt --fix-broken install -y
+#         echo "Microsoft Edge installed."
+#     else
+#         echo "Microsoft Edge is already installed."
+#     fi
+# }
 
 # Function to create and activate a virtual environment
 create_venv() {
@@ -74,7 +74,7 @@ stop_bot() {
 install_pip
 
 # Install Microsoft Edge if not installed
-install_edge_if_needed
+# install_edge_if_needed
 
 # Create and activate virtual environment
 create_venv

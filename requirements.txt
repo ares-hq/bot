@@ -1,9 +1,8 @@
-discord.py
-requests
-flask
-audioop-lts
 python-dotenv
 markdown
 pytz
 numpy
 html2image
+discord.py
+requests
+flask
