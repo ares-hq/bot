@@ -60,7 +60,7 @@ class cmdMatch(commands.Cog):
 
                 image_name = "match.png"
                 hti = Html2Image(
-                    browser='google-chrome-stable',
+                    browser='edge',
                     custom_flags=[                    
                         "--headless",
                         "--disable-gpu",
