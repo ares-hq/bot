@@ -68,7 +68,8 @@ class cmdMatch(commands.Cog):
                         "--disable-extensions",
                         "--disable-dev-shm-usage",
                         "--disable-software-rasterizer",
-                        "--disable-dbbackend"
+                        "--disable-dbbackend",
+                        "--disable-broker"
                     ]
                 )
                 img_path = hti.screenshot(html_str=html_content, size=(850, 700), save_as=image_name)[0]
