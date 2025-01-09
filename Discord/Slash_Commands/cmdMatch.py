@@ -60,7 +60,7 @@ class cmdMatch(commands.Cog):
 
                 image_name = "match.png"
                 hti = Html2Image(
-                    browser='chrome',
+                    browser='google-chrome-stable',
                     custom_flags=[                    
                         "--headless",
                         "--disable-gpu",
@@ -68,6 +68,7 @@ class cmdMatch(commands.Cog):
                         "--disable-extensions",
                         "--disable-dev-shm-usage",
                         "--disable-software-rasterizer",
+                        "--disable-dbbackend"
                     ]
                 )
                 img_path = hti.screenshot(html_str=html_content, size=(850, 700), save_as=image_name)[0]
