@@ -17,24 +17,19 @@ install_pip() {
     fi
 }
 
-# Function to install Microsoft Edge and set it as the default browser
-install_edge_and_set_default() {
-    echo "Installing Microsoft Edge..."
-
-    # Download and install Microsoft Edge
-    sudo apt update
-    sudo apt install -y wget
-    wget https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-stable/microsoft-edge-stable_109.0.1518.78-1_amd64.deb
-
-    # Install the downloaded .deb file
-    sudo dpkg -i microsoft-edge-stable_109.0.1518.78-1_amd64.deb
-
-    # Fix any missing dependencies (if needed)
-    sudo apt --fix-broken install -y
-
-    # Set Microsoft Edge as the default browser
-    echo "Setting Microsoft Edge as the default browser..."
-    xdg-settings set default-web-browser microsoft-edge.desktop
+# Function to check if Microsoft Edge is installed, and install if not
+install_edge_if_needed() {
+    if ! command -v microsoft-edge &> /dev/null; then
+        echo "Microsoft Edge not found. Installing Microsoft Edge..."
+        sudo apt update
+        sudo apt install -y wget
+        wget https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-stable/microsoft-edge-stable_109.0.1518.78-1_amd64.deb
+        sudo dpkg -i microsoft-edge-stable_109.0.1518.78-1_amd64.deb
+        sudo apt --fix-broken install -y
+        echo "Microsoft Edge installed."
+    else
+        echo "Microsoft Edge is already installed."
+    fi
 }
 
 # Function to create and activate a virtual environment
@@ -78,8 +73,8 @@ stop_bot() {
 # Install pip3 if not installed
 install_pip
 
-# Install Microsoft Edge and set it as default browser
-install_edge_and_set_default
+# Install Microsoft Edge if not installed
+install_edge_if_needed
 
 # Create and activate virtual environment
 create_venv
