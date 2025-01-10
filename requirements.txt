@@ -6,3 +6,4 @@ html2image
 discord.py
 requests
 flask
+pillow
