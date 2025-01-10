@@ -1,12 +1,10 @@
 #!/bin/bash
 
-# Path to your bot script
 BOT_SCRIPT="FTCScout.py"
 LOG_FILE="ftcscout.log"
-VENV_DIR="venv"  # Directory for the virtual environment
-BRANCH="main-dev"  # The branch to pull from
+VENV_DIR="venv"
+BRANCH="main-dev"
 
-# Function to install pip3 if not already installed
 install_pip() {
     if ! command -v pip3 &> /dev/null; then
         echo "pip3 not found. Installing pip3..."
@@ -17,22 +15,6 @@ install_pip() {
     fi
 }
 
-# Function to check if Microsoft Edge is installed, and install if not
-# install_edge_if_needed() {
-#     if ! command -v microsoft-edge &> /dev/null; then
-#         echo "Microsoft Edge not found. Installing Microsoft Edge..."
-#         sudo apt update
-#         sudo apt install -y wget
-#         wget https://packages.microsoft.com/repos/edge/pool/main/m/microsoft-edge-stable/microsoft-edge-stable_109.0.1518.78-1_amd64.deb
-#         sudo dpkg -i microsoft-edge-stable_109.0.1518.78-1_amd64.deb
-#         sudo apt --fix-broken install -y
-#         echo "Microsoft Edge installed."
-#     else
-#         echo "Microsoft Edge is already installed."
-#     fi
-# }
-
-# Function to create and activate a virtual environment
 create_venv() {
     if [ ! -d "$VENV_DIR" ]; then
         echo "Creating virtual environment..."
@@ -42,7 +24,6 @@ create_venv() {
     source $VENV_DIR/bin/activate
 }
 
-# Function to install dependencies from requirements.txt
 install_requirements() {
     if [ -f "requirements.txt" ]; then
         echo "Installing dependencies from requirements.txt..."
@@ -52,44 +33,34 @@ install_requirements() {
     fi
 }
 
-# Start the bot function
-start_bot() {
-    echo "Starting the bot..."
-    nohup python3 $BOT_SCRIPT > $LOG_FILE 2>&1 &
-    BOT_PID=$!
-    echo "Bot started with PID $BOT_PID"
-}
-
-# Stop the bot function
 stop_bot() {
-    if [ -n "$BOT_PID" ]; then
-        echo "Stopping the bot with PID $BOT_PID"
-        kill $BOT_PID
-        wait $BOT_PID 2>/dev/null
+    if pgrep -f "$BOT_SCRIPT" > /dev/null; then
+        echo "Stopping the running bot process..."
+        pkill -f "$BOT_SCRIPT"
         echo "Bot stopped."
+    else
+        echo "No bot process is currently running."
     fi
 }
 
-# Install pip3 if not installed
+start_bot() {
+    stop_bot
+    echo "Starting the bot..."
+    nohup python3 $BOT_SCRIPT > $LOG_FILE 2>&1 &
+    echo "Bot started."
+}
+
 install_pip
 
-# Install Microsoft Edge if not installed
-# install_edge_if_needed
-
-# Create and activate virtual environment
 create_venv
 
-# Install dependencies from requirements.txt
 install_requirements
 
-# Start the bot immediately
 start_bot
 
-# Run monitoring loop to check for updates
 while true; do
     echo "Checking for updates..."
 
-    # Fetch updates from the remote repository
     git fetch origin $BRANCH > fetch_output.log 2>&1
 
     if [ $? -ne 0 ]; then
@@ -104,10 +75,9 @@ while true; do
     echo "LOCAL Commit Hash: $LOCAL"
     echo "REMOTE Commit Hash: $REMOTE"
 
-    # Force pull the latest updates from the remote main-dev branch
     if [ "$LOCAL" != "$REMOTE" ]; then
         echo "Changes detected. Force pulling updates from $BRANCH..."
-        git reset --hard origin/$BRANCH > pull_output.log 2>&1  # Force pull and reset to the remote main-dev branch
+        git reset --hard origin/$BRANCH > pull_output.log 2>&1
 
         if [ $? -ne 0 ]; then
             echo "Git pull failed! Check pull_output.log for details."
@@ -119,12 +89,8 @@ while true; do
         install_requirements
 
         echo "Restarting the bot..."
-
-        # Stop the current bot and start it again
-        stop_bot
         start_bot
     fi
 
-    # Wait before checking for updates again
     sleep 60
 done
