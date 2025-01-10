@@ -9,3 +9,5 @@ nohup ./monitor_and_run.sh > monitor.log 2>&1 &
 To view live logs:
 tail -f ftcscout.log
 tail -f monitor.log
+
+Test Command
