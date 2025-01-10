@@ -34,10 +34,14 @@ install_requirements() {
 }
 
 stop_bot() {
-    if pgrep -f "$BOT_SCRIPT" > /dev/null; then
-        echo "Stopping the running bot process..."
-        pkill -f "$BOT_SCRIPT"
-        echo "Bot stopped."
+    local PIDS
+    PIDS=$(pgrep -f "$BOT_SCRIPT")  # Find all process IDs for the bot script
+
+    if [ -n "$PIDS" ]; then
+        echo "Stopping the following bot processes: $PIDS"
+        kill $PIDS  # Send termination signal to all matching PIDs
+        wait $PIDS 2>/dev/null  # Wait for processes to terminate
+        echo "All bot processes stopped."
     else
         echo "No bot process is currently running."
     fi
