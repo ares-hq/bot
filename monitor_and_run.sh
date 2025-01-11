@@ -1,7 +1,7 @@
 #!/bin/bash
 
-BOT_SCRIPT="FTCScout.py"
-LOG_FILE="ftcscout.log"
+BOT_SCRIPT="ARES.py"
+LOG_FILE="ARES.log"
 VENV_DIR="venv"
 BRANCH="main-dev"
 

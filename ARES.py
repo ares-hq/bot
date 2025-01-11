@@ -8,7 +8,7 @@ from Discord import State
 
 load_dotenv()
 
-class FTCScout(commands.Bot):
+class ARES(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
