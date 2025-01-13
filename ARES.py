@@ -56,6 +56,6 @@ class ARES(commands.Bot):
         self.run(self.key)
 
 if __name__ == '__main__':
-    bot = FTCScout()
+    bot = ARES()
     bot.set_debug_mode(True, int(os.getenv("DEV_CHANNEL_ID")))
     bot.run_bot()

@@ -1,6 +1,7 @@
 ### Virtual Environments ###
 ftcscout/
 .venv/
+venv/
 
 ### Environment Variables ###
 .env

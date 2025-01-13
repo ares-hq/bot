@@ -7,3 +7,4 @@ discord.py
 requests
 flask
 pillow
+tqdm

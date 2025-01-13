@@ -7,7 +7,7 @@ class Alliance:
     team1: Summary = field(default_factory=Summary)
     team2: Summary = field(default_factory=Summary)
     color: str = field(default_factory=str)
-
+    
     def __post_init__(self):
         if not self.team1:
             self.team1 = Summary()

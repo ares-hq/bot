@@ -3,6 +3,7 @@ import requests
 from dotenv import load_dotenv
 from .APIParams import APIParams
 from .API_Models import Info, Stats, Event
+from Response_Handler.API_Library.API_Models.Event import Event
 from .RobotMath import MatrixBuilder, MatrixMath as mm
 
 '''
