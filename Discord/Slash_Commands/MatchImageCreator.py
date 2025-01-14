@@ -24,7 +24,7 @@ class ImageCreator:
         return text
     
     @staticmethod
-    def createMatchImage(red_team_names, blue_team_names,red_team, blue_team):
+    def createMatchImage(red_team_names, blue_team_names, red_team, blue_team):
         img = Image.new("RGB", (ImageCreator.WIDTH, ImageCreator.HEIGHT), color=ImageCreator.BACKGROUND_COLOR)
         draw = ImageDraw.Draw(img)
 
@@ -73,13 +73,13 @@ class ImageCreator:
         draw_category_box(275, 165, box_width_middle, ["TEAM 1", "TEAM 2"], header_text="Alliance", radius=radius)
         draw_category_box(550, 165, box_width_right, [blue_team_names[0], blue_team_names[1]], ImageCreator.BLUE_COLOR, header_text="Blue", radius=radius)
 
-        draw_category_box(25, 320, box_width_left, [f"{red_team[2]}", f"{red_team[3]}", f"{red_team[4]}", f"{0}"], ImageCreator.RED_COLOR, radius=radius)
+        draw_category_box(25, 320, box_width_left, [f"{red_team[2]}", f"{red_team[3]}", f"{red_team[4]}", f"{blue_team[5]}"], ImageCreator.RED_COLOR, radius=radius)
         draw_category_box(275, 320, box_width_middle, ["AUTO", "TELEOP", "ENDGAME", "\u2190 BLUE  PENALTIES  RED \u2192"], header_text="Score Breakdown", radius=radius)
-        draw_category_box(550, 320, box_width_right, [f"{blue_team[2]}", f"{blue_team[3]}", f"{blue_team[4]}", f"{0}"], ImageCreator.BLUE_COLOR, radius=radius)
+        draw_category_box(550, 320, box_width_right, [f"{blue_team[2]}", f"{blue_team[3]}", f"{blue_team[4]}", f"{red_team[5]}"], ImageCreator.BLUE_COLOR, radius=radius)
 
-        draw_category_box(25, 510, box_width_left, [f"{red_team[5]}"], ImageCreator.RED_COLOR, radius=radius)
-        draw_category_box(275, 510, box_width_middle, ["FINAL SCORE"], radius=radius)
-        draw_category_box(550, 510, box_width_right, [f"{blue_team[5]}"], ImageCreator.BLUE_COLOR, radius=radius)
+        draw_category_box(25, 510, box_width_left, [f"{int(red_team[6]) + int(blue_team[5])} ({red_team[6]})"], ImageCreator.RED_COLOR, radius=radius)
+        draw_category_box(275, 510, box_width_middle, ["FINAL SCORE (NP)"], radius=radius)
+        draw_category_box(550, 510, box_width_right, [f"{int(blue_team[6]) + int(red_team[5])} ({blue_team[6]})"], ImageCreator.BLUE_COLOR, radius=radius)
         
         return img
     

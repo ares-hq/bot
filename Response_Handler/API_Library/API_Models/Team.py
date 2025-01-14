@@ -32,6 +32,7 @@ class Stats:
     endgameOPR: float = field(default_factory=float)
     overallOPR: float = field(default_factory=float)
     autoRank: float = field(default_factory=float)
+    penalties: float = field(default_factory=float)
     teleRank: float = field(default_factory=float)
     endgameRank: float = field(default_factory=float)
     overallRank: float = field(default_factory=float)
@@ -113,6 +114,7 @@ class Stats:
                 autoOPR=    self.autoOPR + other.autoOPR,
                 teleOPR=    self.teleOPR + other.teleOPR,
                 endgameOPR= self.endgameOPR + other.endgameOPR,
+                penalties= self.penalties + other.penalties,
                 overallOPR= self.overallOPR + other.overallOPR
             )
         elif isinstance(other, Info):
@@ -132,6 +134,7 @@ class Stats:
             f"Tele Rank: **{self.teleRank}**\n"
             f"Endgame OPR: **{self.endgameOPR:.2f}**\n"
             f"Endgame Rank: **{self.endgameRank}**\n"
+            f"Commited Penalties OPR: **{self.penalties:.2f}**\n"
             f"Overall OPR: **{self.overallOPR:.2f}**\n"
             f"Overall Rank: **{self.overallRank}**\n"
         )
@@ -211,6 +214,7 @@ class Summary:
             f"Auto OPR: **{self.stats.autoOPR:.2f}** ({self.stats.autoRank})\n"
             f"Tele OPR: **{self.stats.teleOPR:.2f}** ({self.stats.teleRank})\n"
             f"Endgame OPR: **{self.stats.endgameOPR:.2f}** ({self.stats.endgameRank})\n"
+            f"Penalties Committed OPR: **{self.stats.penalties:.2f}**\n"
             f"Overall OPR: **{self.stats.overallOPR:.2f}** ({self.stats.overallRank})\n"
             f"Last Updated: {self.stats.profileUpdate.replace("T", " ")}\n"
         )

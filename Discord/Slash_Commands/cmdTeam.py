@@ -11,7 +11,7 @@ class cmdTeam(commands.Cog):
     @app_commands.command(name="team", description="Displays team information.")
     @app_commands.describe(team_number="Details about the team.")
     async def team(self, interaction: discord.Interaction, team_number: str):
-        if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
+        if self.bot.debug_mode and interaction.channel_id not in self.bot.debug_channel_ids:
             return
 
         if not team_number or not team_number.isdigit():

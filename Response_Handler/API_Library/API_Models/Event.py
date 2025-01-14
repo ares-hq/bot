@@ -24,6 +24,7 @@ class Alliance:
             f"{self.stats.autoOPR:.0f}",
             f"{self.stats.teleOPR:.0f}",
             f"{self.stats.endgameOPR:.0f}",
+            f"{self.stats.penalties:.0f}",
             f"{self.stats.overallOPR:.0f}"
         ]
 
@@ -42,7 +43,7 @@ class Match:
     winner: str = field(default_factory=str)
 
     def __post_init__(self):
-        self.matchCategories = ["Team 1", "Team 2", "Autonomous", "TeleOp", "End Game", "Final Score"] # Designed to match "FIRST Tech Challenge" Competition Categories
+        self.matchCategories = ["Team 1", "Team 2", "Autonomous", "TeleOp", "End Game", "Penalties", "Final Score"] # Designed to match "FIRST Tech Challenge" Competition Categories
         
         # Check if alliances are empty
         self.redAllianceEmpty = not self.redAlliance or not self.redAlliance.stats or all(value in [0, "", None] for value in self.redAlliance.stats.__dict__.values())

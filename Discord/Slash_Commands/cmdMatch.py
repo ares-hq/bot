@@ -14,7 +14,7 @@ class cmdMatch(commands.Cog):
     @app_commands.command(name="match", description="Displays match details.")
     @app_commands.describe(red_alliance="Red Alliance team numbers (space-separated).", blue_alliance="Blue Alliance team numbers (space-separated, optional).")
     async def match(self, interaction: discord.Interaction, red_alliance: str, blue_alliance: str = None):
-        if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
+        if self.bot.debug_mode and interaction.channel_id not in self.bot.debug_channel_ids:
             return
 
         try:
@@ -40,8 +40,8 @@ class cmdMatch(commands.Cog):
                 image = ImageCreator.createMatchImage(
                     red_team_names=match.redAlliance.teamNames,
                     blue_team_names=match.blueAlliance.teamNames,
-                    red_team=match.redAlliance,
-                    blue_team=match.blueAlliance,
+                    red_team=match.redAlliance.scoreboard,
+                    blue_team=match.blueAlliance.scoreboard,
                 )
             
             image.save(image_name, format="PNG")

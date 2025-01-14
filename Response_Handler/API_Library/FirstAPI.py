@@ -61,15 +61,19 @@ class FirstAPI:
         match_data = self.api_request(params.to_path_segments())
         match_data = match_data.get('matches', [])
 
-        endgame_params = APIParams(
+        point_breakdown_params = APIParams(
             path_segments=[params.path_segments[0], 'scores', params.path_segments[2], 'qual'],
         )
-        endgame_stats = self.get_endgame_stats(endgame_params)
+        endgame_stats = self.get_endgame_stats(point_breakdown_params)
+        penalties = self.get_penalties(point_breakdown_params)
+        
         modified_on_match_data = {}
 
-        for match, endgame in zip(match_data, endgame_stats):
+        for match, endgame, penalty in zip(match_data, endgame_stats, penalties):
             match["scoreRedEndgame"] = endgame["red"]
             match["scoreBlueEndgame"] = endgame["blue"]
+            match["penaltyPointsRed"] = penalty["red"]
+            match["penaltyPointsBlue"] = penalty["blue"]
 
         for match in match_data:
             for team in match['teams']:
@@ -83,6 +87,7 @@ class FirstAPI:
         teams_auto = mm.LSE(matrix_builder.binary_matrix, matrix_builder.auto_matrix)
         teams_tele = mm.LSE(matrix_builder.binary_matrix, matrix_builder.tele_matrix)
         teams_endgame = mm.LSE(matrix_builder.binary_matrix, matrix_builder.endgame_matrix)
+        teams_penalties = mm.LSE(matrix_builder.binary_matrix, matrix_builder.penalties_matrix)
 
         for team in matrix_builder.teams:
             team_stats = Stats(
@@ -91,6 +96,7 @@ class FirstAPI:
                 teleOPR=teams_tele[matrix_builder.team_indices[team]],
                 endgameOPR=teams_endgame[matrix_builder.team_indices[team]],
                 overallOPR=teams_auto[matrix_builder.team_indices[team]] + teams_tele[matrix_builder.team_indices[team]],
+                penalties=teams_penalties[matrix_builder.team_indices[team]],
                 profileUpdate=modified_on_match_data.get(team, "Unknown")
             )
             event.teams.append(team_stats)
@@ -129,7 +135,26 @@ class FirstAPI:
             blue_sum = blue_alliance["teleopParkPoints"] + blue_alliance["teleopAscentPoints"]
             result.append({"matchNumber": match["matchNumber"], "red": red_sum, "blue": blue_sum})
 
-        return result             
+        return result
+    
+    def get_penalties(self, params):
+        """
+        Get penalty statistics for a tournament.
+        """
+        assert isinstance(params, APIParams)
+        response = self.api_request(params.to_path_segments())
+        match_scores = response.get('matchScores', [])
+        
+        result = []
+        for match in match_scores:
+            red_alliance = match["alliances"][1]
+            blue_alliance = match["alliances"][0]
+            red_sum = red_alliance["foulPointsCommitted"]
+            blue_sum = blue_alliance["foulPointsCommitted"]
+            result.append({"matchNumber": match["matchNumber"], "red": red_sum, "blue": blue_sum})
+
+        return result
+                  
 
 # class URLBuilder:
 #     """

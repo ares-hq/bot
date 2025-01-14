@@ -23,7 +23,7 @@ class HandleMessageResponse:
                 raise KeyError(f"Missing data - Team Stats")
             
             # Check if all float values in stats are zero
-            if all(getattr(team_summary.stats, attr) == 0.0 for attr in ['autoOPR', 'teleOPR', 'endgameOPR', 'overallOPR']):
+            if all(getattr(team_summary.stats, attr) == 0.0 for attr in ['autoOPR', 'teleOPR', 'endgameOPR', 'overallOPR', 'Penalties']):
                 raise ValueError(f"All float values in team stats are zero for team number {team_number}")
             
             # Check if team number is empty or zero

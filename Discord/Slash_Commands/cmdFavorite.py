@@ -12,7 +12,7 @@ class cmdFavorite(commands.Cog):
     @app_commands.command(name="favorite", description="Marks this as your favorite or shows favorite teams.")
     @app_commands.describe(team_number="The team to mark as favorite.")
     async def favorite(self, interaction: discord.Interaction, team_number: str = None):
-        if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
+        if self.bot.debug_mode and interaction.channel_id not in self.bot.debug_channel_ids:
             return
 
         server_id = interaction.guild.id

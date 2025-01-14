@@ -10,7 +10,7 @@ class cmdHelp(commands.Cog):
 
     @app_commands.command(name="help", description="Displays help information.")
     async def help(self, interaction: discord.Interaction):
-        if self.bot.debug_mode and interaction.channel_id != self.bot.debug_channel_id:
+        if self.bot.debug_mode and interaction.channel_id not in self.bot.debug_channel_ids:
             return
 
         pages = []
