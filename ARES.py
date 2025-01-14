@@ -38,7 +38,7 @@ class ARES(commands.Bot):
         print(f"Message from {message.author}: {message.content}")
         await self.process_commands(message)
 
-    def run_bot(self, debug_mode: bool = False, debug_channel_ids: int = [int(os.getenv("DEV_CHANNEL_ID1"))]):
+    def run_bot(self, debug_mode: bool = False, debug_channel_ids: int =[int(os.getenv("DEV_CHANNEL_ID1")), int(os.getenv("DEV_CHANNEL_ID2"))]):
         self.debug_mode = debug_mode
         self.debug_channel_ids = debug_channel_ids
 
@@ -50,4 +50,4 @@ class ARES(commands.Bot):
 
 if __name__ == '__main__':
     bot = ARES()
-    bot.run_bot(debug_mode=True, debug_channel_ids=[int(os.getenv("DEV_CHANNEL_ID1")), int(os.getenv("DEV_CHANNEL_ID2"))])
+    bot.run_bot()
