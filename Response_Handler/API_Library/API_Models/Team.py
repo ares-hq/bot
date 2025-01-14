@@ -33,6 +33,7 @@ class Stats:
     overallOPR: float = field(default_factory=float)
     autoRank: float = field(default_factory=float)
     penalties: float = field(default_factory=float)
+    penaltyRank: float = field(default_factory=float)
     teleRank: float = field(default_factory=float)
     endgameRank: float = field(default_factory=float)
     overallRank: float = field(default_factory=float)
@@ -52,6 +53,7 @@ class Stats:
         self._teleRank = self.teleRank
         self._endgameRank = self.endgameRank
         self._overallRank = self.overallRank
+        self.penaltyRank = self.penaltyRank
 
     def __getattr__(self, name):
         """
@@ -135,6 +137,7 @@ class Stats:
             f"Endgame OPR: **{self.endgameOPR:.2f}**\n"
             f"Endgame Rank: **{self.endgameRank}**\n"
             f"Commited Penalties OPR: **{self.penalties:.2f}**\n"
+            f"Penalties Rank: **{self.penaltyRank:0f}**\n"
             f"Overall OPR: **{self.overallOPR:.2f}**\n"
             f"Overall Rank: **{self.overallRank}**\n"
         )
@@ -214,7 +217,7 @@ class Summary:
             f"Auto OPR: **{self.stats.autoOPR:.2f}** ({self.stats.autoRank})\n"
             f"Tele OPR: **{self.stats.teleOPR:.2f}** ({self.stats.teleRank})\n"
             f"Endgame OPR: **{self.stats.endgameOPR:.2f}** ({self.stats.endgameRank})\n"
-            f"Penalties Committed OPR: **{self.stats.penalties:.2f}**\n"
+            f"Penalties Committed OPR: **{self.stats.penalties:.2f}** ({self.stats.penaltyRank})\n"
             f"Overall OPR: **{self.stats.overallOPR:.2f}** ({self.stats.overallRank})\n"
             f"Last Updated: {self.stats.profileUpdate.replace("T", " ")}\n"
         )

@@ -84,6 +84,7 @@ class WorldOPR:
         tele_ranking = sorted(teams, key=itemgetter("teleOPR"), reverse=True)
         endgame_ranking = sorted(teams, key=itemgetter("endgameOPR"), reverse=True)
         overall_ranking = sorted(teams, key=itemgetter("overallOPR"), reverse=True)
+        penalties_ranking = sorted(teams, key=itemgetter("penalties"))
 
         for idx, team in enumerate(auto_ranking, start=1):
             self.worldOPRTestDict[team["teamNumber"]]["autoRank"] = idx
@@ -93,6 +94,8 @@ class WorldOPR:
             self.worldOPRTestDict[team["teamNumber"]]["endgameRank"] = idx
         for idx, team in enumerate(overall_ranking, start=1):
             self.worldOPRTestDict[team["teamNumber"]]["overallRank"] = idx
+        for idx, team in enumerate(penalties_ranking, start=1):
+            self.worldOPRTestDict[team["teamNumber"]]["penaltiesRank"] = idx
 
         # Save the results
         with open(self.output_file, "w") as json_file:

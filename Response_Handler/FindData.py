@@ -83,6 +83,7 @@ class FindData:
                 overallOPR=team_data.get('overallOPR', 0.0),
                 overallRank=team_data.get('overallRank', 0),
                 penalties=team_data.get('penalties', 0.0),
+                penaltyRank=team_data.get('penaltiesRank', 0),
                 profileUpdate=parsed_date.strftime("%m/%d/%Y %H:%M") if date_str else "Unknown"
             )
         return Stats(teamNumber=team_number)
