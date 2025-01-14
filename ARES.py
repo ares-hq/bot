@@ -50,4 +50,4 @@ class ARES(commands.Bot):
 
 if __name__ == '__main__':
     bot = ARES()
-    bot.run_bot(debug_mode=True, dev_channel_ids=[int(os.getenv("DEV_CHANNEL_ID1")), int(os.getenv("DEV_CHANNEL_ID2"))])
+    bot.run_bot(debug_mode=True, debug_channel_ids=[int(os.getenv("DEV_CHANNEL_ID1")), int(os.getenv("DEV_CHANNEL_ID2"))])
