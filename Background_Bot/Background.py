@@ -6,7 +6,6 @@ from Response_Handler.API_Library.FirstAPI import FirstAPI
 from Response_Handler.API_Library.API_Models.Season import History
 from Response_Handler.API_Library.RobotMath.MatrixMath import MatrixMath as mm
 
-
 '''
 This class should only ever be run in the background. 
 This class should never be called as a result from user message.
