@@ -20,7 +20,7 @@ class ARES(commands.Bot):
     async def setup_hook(self):
         await self.slash_commands.setup()
         if self.debug_mode:
-            dev_guild = discord.Object(id=os.getenv("DEV_SERVER_ID"))
+            dev_guild = discord.Object(id=os.getenv("DEV_SERVER_ID1"))
             self.tree.copy_global_to(guild=dev_guild)
             print(f"Development Mode: Active in channels: {", ".join(map(str, self.debug_channel_ids))}")
             await self.tree.sync(guild=dev_guild)
@@ -38,7 +38,7 @@ class ARES(commands.Bot):
         print(f"Message from {message.author}: {message.content}")
         await self.process_commands(message)
 
-    def run_bot(self, debug_mode: bool = False, debug_channel_ids: int = [int(os.getenv("DEV_CHANNEL_ID"))]):
+    def run_bot(self, debug_mode: bool = False, debug_channel_ids: int = [int(os.getenv("DEV_CHANNEL_ID1"))]):
         self.debug_mode = debug_mode
         self.debug_channel_ids = debug_channel_ids
 
