@@ -76,7 +76,7 @@ class Stats:
         >>> print(team.endgameRank)  # Output: 3rd
         >>> print(team.overallRank)  # Output: 4th
         """
-        if name in ['autoRank', 'teleRank', 'endgameRank', 'overallRank']:
+        if name in ['autoRank', 'teleRank', 'endgameRank', 'overallRank', 'penaltyRank']:
             rank = getattr(self, f"_{name}")
             if isinstance(rank, str) and rank[-2:] in ['st', 'nd', 'rd', 'th']:
                 return rank
@@ -91,7 +91,7 @@ class Stats:
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     def __setattr__(self, name, value):
-        if name in ['autoRank', 'teleRank', 'endgameRank', 'overallRank']:
+        if name in ['autoRank', 'teleRank', 'endgameRank', 'overallRank', 'penaltyRank']:
             super().__setattr__(f"_{name}", value)
         else:
             super().__setattr__(name, value)
