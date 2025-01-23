@@ -219,5 +219,5 @@ class Summary:
             f"Endgame OPR: **{self.stats.endgameOPR:.2f}** ({self.stats.endgameRank})\n"
             f"Penalties Committed OPR: **{self.stats.penalties:.2f}** ({self.stats.penaltyRank})\n"
             f"Overall OPR: **{self.stats.overallOPR:.2f}** ({self.stats.overallRank})\n"
-            f"Last Updated: {self.stats.profileUpdate.replace("T", " ")}\n"
+            f"Last Updated: {self.stats.profileUpdate.replace('T', ' ')}\n"
         )
