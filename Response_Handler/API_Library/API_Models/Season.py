@@ -2,7 +2,6 @@ from dataclasses import dataclass,field
 from typing import Dict
 from .Event import Event
 
-
 @dataclass
 class Season:
     """

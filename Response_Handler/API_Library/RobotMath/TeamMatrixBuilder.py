@@ -13,6 +13,8 @@ class MatrixBuilder():
         self.penalties_matrix = np.zeros((self.num_matches * 2), dtype=int)
         self.team_indices = None
         
+        self.create_binary_and_score_matrices()
+        
     def create_team_matrices(self):
         '''This function is neccesary to find all teams in a given tournament.'''
         

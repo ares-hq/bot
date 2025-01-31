@@ -111,5 +111,16 @@ function (/info){
     ```command: help```\
     ```returnType: plain-text```
 
+## Helpful Notes ##
+To find and kill a process:
+ps -ef | grep python3
+kill {proccess}
 
+To run the app in background:
+chmod +x ./monitor_and_run.sh
+nohup ./monitor_and_run.sh > monitor.log 2>&1 &
+
+To view live logs:
+tail -f ftcscout.log
+tail -f monitor.log
     
