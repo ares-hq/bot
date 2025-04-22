@@ -49,4 +49,4 @@ class ARES(commands.Bot):
 
 if __name__ == '__main__':
     bot = ARES()
-    bot.run_bot(debug_mode=True)
+    bot.run_bot()
