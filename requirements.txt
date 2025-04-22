@@ -8,4 +8,5 @@ requests
 flask
 pillow
 tqdm
-libsql-experimental
+supabase
+datetime
