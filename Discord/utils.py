@@ -1,5 +1,4 @@
 import discord
-import asyncio
 
 class PaginationView(discord.ui.View):
     def __init__(self, pages):

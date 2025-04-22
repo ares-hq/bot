@@ -1,126 +1,166 @@
-```
- ________  _________   ________                          
-|\  _____\|\___   ___\|\   ____\                         
-\ \  \__/ \|___ \  \_|\ \  \___|                         
- \ \   __\     \ \  \  \ \  \                            
-  \ \  \_|      \ \  \  \ \  \____                       
-   \ \__\        \ \__\  \ \_______\                     
-    \|__|         \|__|   \|_______|                     
-                                                         
-                                                         
-                                                         
- ________   ________   ________   ___  ___   _________   
-|\   ____\ |\   ____\ |\   __  \ |\  \|\  \ |\___   ___\ 
-\ \  \___|_\ \  \___| \ \  \|\  \\ \  \\\  \\|___ \  \_| 
- \ \_____  \\ \  \     \ \  \\\  \\ \  \\\  \    \ \  \  
-  \|____|\  \\ \  \____ \ \  \\\  \\ \  \\\  \    \ \  \ 
-    ____\_\  \\ \_______\\ \_______\\ \_______\    \ \__\
-   |\_________\\|_______| \|_______| \|_______|     \|__|
-   \|_________|                                          
-
-
+## **ARES BOT**
+```text
+      ___           ___           ___           ___                                  ___                   
+     /\  \         /\  \         /\__\         /\__\                  _____         /\  \                  
+    /::\  \       /::\  \       /:/ _/_       /:/ _/_                /::\  \       /::\  \         ___     
+   /:/\:\  \     /:/\:\__\     /:/ /\__\     /:/ /\  \              /:/\:\  \     /:/\:\  \       /\__\    
+  /:/ /::\  \   /:/ /:/  /    /:/ /:/ _/_   /:/ /::\  \            /:/ /::\__\   /:/  \:\  \     /:/  /    
+ /:/_/:/\:\__\ /:/_/:/__/___ /:/_/:/ /\__\ /:/_/:/\:\__\          /:/_/:/\:|__| /:/__/ \:\__\   /:/__/     
+ \:\/:/  \/__/ \:\/:::::/  / \:\/:/ /:/  / \:\/:/ /:/  /          \:\/:/ /:/  / \:\  \ /:/  /  /::\  \     
+  \::/__/       \::/~~/~~~~   \::/_/:/  /   \::/ /:/  /            \::/_/:/  /   \:\  /:/  /  /:/\:\  \    
+   \:\  \        \:\~~\        \:\/:/  /     \/_/:/  /              \:\/:/  /     \:\/:/  /   \/__\:\  \   
+    \:\__\        \:\__\        \::/  /        /:/  /                \::/  /       \::/  /         \:\__\  
+     \/__/         \/__/         \/__/         \/__/                  \/__/         \/__/           \/__/  
 ```
 
-# Versions #
+# 🔁 Version History
 
-## v2.0.0 ##
-- **Bot is Now Verified!**
-- **Bot now uses `/` commands!**
-- Transferred to *FIRST* Official API
-- Custom Offensive Power Ranking (OPR) Calculator
-- **Revised Commands:** `/team`, `/match`, `/help`
-- **New Commands:** `/favorite`
+---
+
+## 🚀 v2.0.0 — Major Update
+
+- ✅ **Bot is Now Verified!**
+- ✅ **Supports Slash `/` Commands!**
+- 🔁 Migrated to **FIRST Official API**
+- ⚙️ Custom **Offensive Power Rating (OPR)** Calculator
+- 🧠 **Updated Commands**: `/team`, `/match`, `/help`
+- ⭐ **New Command**: `/favorite`
+
 ### `/team`
+
 ```js
-function (/team '<number>'){
-        string "Team Number"
-        string "Team Name"
-        string "Team Location"
-        string "Team Sponsors"
-        string "World Autonomous OPR"
-        string "World TeleOp OPR"
-        string "World End Game OPR"
-        string "World Total OPR"
-        return: Discord-Embedded-Message
-    }
+/team <number>
+
+// Returns:
+{
+  "Team Number": "...",
+  "Team Name": "...",
+  "Team Location": "...",
+  "Team Sponsors": "...",
+  "World Autonomous OPR": "...",
+  "World TeleOp OPR": "...",
+  "World End Game OPR": "...",
+  "World Total OPR": "..."
+}
 ```
+
+---
+
 ### `/match`
-```js
-function (/match '<team-number-1> <team-number-2>'){
-        string "Team 1"
-        string "Team 2"
-        string "Alliance Autonomous OPR"
-        string "Alliance TeleOp OPR"
-        string "Alliance End Game Score"
-        string "Alliance Total Score"
-        return: Discord-Embedded-Message
-    }
-```
-```js
-function (/match '<team-number-1> <team-number-2> <team-number-3> <team-number-4>'){
-        //Red Alliance
-        string "Team 1"
-        string "Team 2"
-        string "Alliance Autonomous OPR"
-        string "Alliance TeleOp OPR"
-        string "Alliance End Game Score"
-        string "Alliance Total Score"
 
-        //Blue Alliance
-        string "Team 3"
-        string "Team 4"
-        string "Alliance Autonomous OPR"
-        string "Alliance TeleOp OPR"
-        string "Alliance End Game Score"
-        string "Alliance Total Score"
-        return: Discord-Embedded-Message
-    }
+#### 2-Team Match:
+```js
+/match <team-number-1> <team-number-2>
+
+// Returns:
+{
+  "Team 1": "...",
+  "Team 2": "...",
+  "Alliance Autonomous OPR": "...",
+  "Alliance TeleOp OPR": "...",
+  "Alliance End Game Score": "...",
+  "Alliance Total Score": "..."
+}
 ```
+
+#### 4-Team Match:
+```js
+/match <team-1> <team-2> <team-3> <team-4>
+
+// Returns:
+{
+  // Red Alliance
+  "Team 1": "...",
+  "Team 2": "...",
+  "Red Auto": "...",
+  "Red TeleOp": "...",
+  "Red End Game": "...",
+  "Red Total": "...",
+
+  // Blue Alliance
+  "Team 3": "...",
+  "Team 4": "...",
+  "Blue Auto": "...",
+  "Blue TeleOp": "...",
+  "Blue End Game": "...",
+  "Blue Total": "..."
+}
+```
+
+---
+
 ### `/help`
+
 ```js
-function (/info){
-        string "Bot Information"
-        string "Bot Version"
-        string "Bot Developers"
-        string PageTurn("ALL COMMANDS")
-        return: Discord-Embedded-Pages
-    }
+/help
+
+// Returns:
+{
+  "Bot Information": "...",
+  "Version": "2.0.0",
+  "Developers": "...",
+  "Commands": ["team", "match", "favorite"]
+}
 ```
+
+---
+
 ### `/favorite`
+
 ```js
-function (/info){
-        //Adds Special Server Modifiers
-        ChangeBotNickname("Team #### Bot")
-        return: Discord-Embedded-Message
-    }
+/favorite
+
+// Returns:
+{
+  "Effect": "Changes bot nickname in server to: Team #### Bot"
+}
 ```
 
+---
 
-## v1.5.0 ##
-- Added Ability to Simulate Matches Based on Team World OPR
-    - Merges Team Lookup Stats into Alliance Format\
-    ```command: match <team-number-1> <team-number-2>```\
-    ```returnType: plain-text```
+## 📦 v1.5.0
 
-## v1.0.0 ##
-- FTCScout API Implementation
-- Added Team Command
-    - Teleop, Auto, and Endgame OPR
-    - Team Location, Sponsors, etc.
-- **Help** Command\
-    ```command: help```\
-    ```returnType: plain-text```
+- ➕ Added Match Simulation Based on Team World OPR
+- ➕ Merges Lookup Stats into Alliance Format
 
-## Helpful Notes ##
-To find and kill a process:
+Example:
+```bash
+match <team-number-1> <team-number-2>
+# Returns: plain-text match summary
+```
+
+---
+
+## 🛠 v1.0.0 — Initial Release
+
+- ✅ Implemented FTCScout API
+- ✅ Added Team Command (TeleOp, Auto, Endgame, Location, Sponsors)
+- ✅ Added Help Command
+
+Example:
+```bash
+help
+# Returns: plain-text command list
+```
+
+---
+
+## 🧠 Helpful Notes
+
+### Kill a Running Python Script
+```bash
 ps -ef | grep python3
-kill {proccess}
+kill <process_id>
+```
 
-To run the app in background:
+### Run the App in Background
+```bash
 chmod +x ./monitor_and_run.sh
 nohup ./monitor_and_run.sh > monitor.log 2>&1 &
+```
 
-To view live logs:
+### View Live Logs
+```bash
 tail -f ftcscout.log
 tail -f monitor.log
-    
+```

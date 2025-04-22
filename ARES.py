@@ -3,7 +3,6 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import os
 from Discord.commands import Commands
-from Discord import State
 
 load_dotenv()
 

@@ -14,14 +14,18 @@ class Alliance:
     combined_overallOPR: float = 0.0
 
     def __post_init__(self):
-        self.combined_autoOPR = self.team1.autoOPR + self.team2.autoOPR
-        self.combined_teleOPR = self.team1.teleOPR + self.team2.teleOPR
-        self.combined_endgameOPR = self.team1.endgameOPR + self.team2.endgameOPR
-        self.combined_penalties = self.team1.penalties + self.team2.penalties
-        self.combined_overallOPR = self.combined_autoOPR + self.combined_teleOPR + self.combined_endgameOPR
+        if self.team1 and self.team2:
+            self.combined_autoOPR = self.team1.autoOPR + self.team2.autoOPR
+            self.combined_teleOPR = self.team1.teleOPR + self.team2.teleOPR
+            self.combined_endgameOPR = self.team1.endgameOPR + self.team2.endgameOPR
+            self.combined_penalties = self.team1.penalties + self.team2.penalties
+            self.combined_overallOPR = self.combined_autoOPR + self.combined_teleOPR + self.combined_endgameOPR
 
-        self.teamNums: List[int] = [self.team1.teamNumber, self.team2.teamNumber]
-        self.teamNames: List[str] = [self.team1.teamName, self.team2.teamName]
+            self.teamNums: List[int] = [self.team1.teamNumber, self.team2.teamNumber]
+            self.teamNames: List[str] = [self.team1.teamName, self.team2.teamName]
+        else: 
+            self.teamNums: List[int] = [0, 0]
+            self.teamNames: List[str] = ["", ""]
 
         self.scoreboard: List[str] = [
             f"{self.teamNums[0]}",
