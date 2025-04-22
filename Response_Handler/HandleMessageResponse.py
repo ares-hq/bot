@@ -1,6 +1,6 @@
-from SupabaseHandler import SupabaseHandler
-from API_Models import Team
-from API_Models.Event import Alliance, Match
+from Response_Handler.SupabaseHandler import SupabaseHandler
+from Response_Handler.API_Models import Team
+from Response_Handler.API_Models.Event import Alliance, Match
 
 class HandleMessageResponse:
     """

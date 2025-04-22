@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from supabase import Client, create_client
 
-from API_Models import Team
+from Response_Handler.API_Models import Team
 
 class SupabaseHandler:
     def __init__(self, supabase_url=None, supabase_key=None):
