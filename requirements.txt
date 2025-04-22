@@ -1,0 +1,11 @@
+python-dotenv
+markdown
+pytz
+numpy
+html2image
+discord.py
+requests
+flask
+pillow
+tqdm
+libsql-experimental
