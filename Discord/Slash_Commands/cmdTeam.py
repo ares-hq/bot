@@ -2,8 +2,8 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from Response_Handler import HandleMessageResponse as msg
-from Response_Handler.SupabaseHandler import SupabaseHandler
 from Discord.BotState import State
+from Response_Handler.SupabaseHandler import SupabaseHandler
 
 class cmdTeam(commands.Cog):
     def __init__(self, bot):
@@ -21,7 +21,8 @@ class cmdTeam(commands.Cog):
             return
 
         try:
-            message = msg.team_message_data(team_number=int(team_number)).__str__()
+            data_handler = SupabaseHandler()
+            message = msg.team_message_data(team_number=int(team_number), data_handler=data_handler).__str__()
         except Exception as e:
             if self.bot.debug_mode:
                 print(e)

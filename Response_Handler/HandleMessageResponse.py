@@ -24,12 +24,11 @@ class HandleMessageResponse:
         except KeyError as e:
             raise KeyError(f"Error in team_message_data for team number {team_number}") from e
 
-    def form_alliance(color:str, teams:list[int])->Alliance:
+    def form_alliance(color:str, teams:list[int], data_handler:SupabaseHandler)->Alliance:
         """Creates an Alliance object from a list of team numbers"""
         try:
             if teams is None or len(teams) != 2:
                 return Alliance(team1=None, team2=None, color=color)
-            data_handler = SupabaseHandler()
             team_objects = [HandleMessageResponse.team_message_data(team, data_handler=data_handler) for team in teams]
             return Alliance(team1=team_objects[0], team2=team_objects[1], color=color)
         except Exception as e:
@@ -41,11 +40,12 @@ class HandleMessageResponse:
         try:
             redAlliance[0] = int(redAlliance[0])
             redAlliance[1] = int(redAlliance[1])
+            data_handler = SupabaseHandler()
             if blueAlliance is not None and len(blueAlliance) == 2:
                 blueAlliance[0] = int(blueAlliance[0])
                 blueAlliance[1] = int(blueAlliance[1])
-            return Match(redAlliance=HandleMessageResponse.form_alliance('Red', redAlliance),
-                         blueAlliance=HandleMessageResponse.form_alliance('Blue', blueAlliance))
+            return Match(redAlliance=HandleMessageResponse.form_alliance('Red', redAlliance, data_handler),
+                         blueAlliance=HandleMessageResponse.form_alliance('Blue', blueAlliance, data_handler))
         except Exception as e:
             raise ValueError("Error in match_message_data") from e
 

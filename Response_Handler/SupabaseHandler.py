@@ -31,29 +31,33 @@ class SupabaseHandler:
         """
         if table_name == "null":
             table_name = f"season{self.find_year()}"
-        if table_name not in self.team_data.keys():
-            self.team_data[table_name] = self.supabase.table(self.table).select("*").execute().data or []
-        for row in self.team_data[table_name]:
-            if row["teamNumber"] == team_number:
-                return Team(
-                    teamName=row["teamName"],
-                    sponsors=row["sponsors"],
-                    location=row["location"],
-                    teamNumber = team_number,
-                    autoOPR = row["autoOPR"],
-                    teleOPR = row["teleOPR"],
-                    endgameOPR = row["endgameOPR"],
-                    overallOPR = row["overallOPR"],
-                    penalties = row["penalties"],
-                    autoRank = row.get("autoRank"),
-                    teleRank = row.get("teleRank"),
-                    endgameRank = row.get("endgameRank"),
-                    overallRank = row.get("overallRank"),
-                    penaltyRank = row.get("penaltyRank"),
-                    profileUpdate = row.get("profileUpdate"),
-                    eventDate= row.get("eventDate"),
-                )
-        return Team()
+        if table_name not in self.team_data:
+            self.team_data[table_name] = {}
+
+            raw_data = self.supabase.table(self.table).select("*").execute().data or []
+            for row in raw_data:
+                tnum = row.get("teamNumber")
+                if tnum is not None:
+                    self.team_data[table_name][tnum] = Team(
+                        teamName=row["teamName"],
+                        sponsors=row["sponsors"],
+                        location=row["location"],
+                        teamNumber=tnum,
+                        autoOPR=row["autoOPR"],
+                        teleOPR=row["teleOPR"],
+                        endgameOPR=row["endgameOPR"],
+                        overallOPR=row["overallOPR"],
+                        penalties=row["penalties"],
+                        autoRank=row.get("autoRank"),
+                        teleRank=row.get("teleRank"),
+                        endgameRank=row.get("endgameRank"),
+                        overallRank=row.get("overallRank"),
+                        penaltyRank=row.get("penaltyRank"),
+                        profileUpdate=row.get("profileUpdate"),
+                        eventDate=row.get("eventDate"),
+                    )
+
+        return self.team_data[table_name].get(team_number, Team())
     
     @staticmethod     
     def find_year():
