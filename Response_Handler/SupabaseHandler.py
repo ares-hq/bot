@@ -51,6 +51,7 @@ class SupabaseHandler:
                     overallRank = row.get("overallRank"),
                     penaltyRank = row.get("penaltyRank"),
                     profileUpdate = row.get("profileUpdate"),
+                    eventDate= row.get("eventDate"),
                 )
         return Team()
     

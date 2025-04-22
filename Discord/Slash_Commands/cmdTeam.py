@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 from Response_Handler import HandleMessageResponse as msg
+from Response_Handler.SupabaseHandler import SupabaseHandler
 from Discord.BotState import State
 
 class cmdTeam(commands.Cog):
@@ -20,7 +21,7 @@ class cmdTeam(commands.Cog):
             return
 
         try:
-            message = msg.team_message_data(team_number).__str__()
+            message = msg.team_message_data(team_number=int(team_number)).__str__()
         except Exception as e:
             if self.bot.debug_mode:
                 print(e)
@@ -43,10 +44,10 @@ class cmdTeam(commands.Cog):
 
         embed = discord.Embed(
             title=f"Information for Team {team_number}",
-            description="\n".join(lines[:-1]),
+            description="\n".join(lines[:-2]),
             color=State.WHITE
         )
-        embed.set_footer(text=lines[-1])
+        embed.set_footer(text="\n".join(lines[-2:]))
         await interaction.response.send_message(embed=embed)
 
 async def setup(bot):

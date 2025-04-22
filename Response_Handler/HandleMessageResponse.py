@@ -11,7 +11,7 @@ class HandleMessageResponse:
     """
     
     @staticmethod
-    def team_message_data(data_handler: SupabaseHandler, team_number:str)->Team:
+    def team_message_data(team_number:int, data_handler: SupabaseHandler=SupabaseHandler())->Team:
         """Returns a Team Summary Object containing the data necessary for the team message."""
         try:
             team_summary = data_handler.get_response(team_number)
@@ -30,7 +30,7 @@ class HandleMessageResponse:
             if teams is None or len(teams) != 2:
                 return Alliance(team1=None, team2=None, color=color)
             data_handler = SupabaseHandler()
-            team_objects = [HandleMessageResponse.team_message_data(data_handler, team) for team in teams]
+            team_objects = [HandleMessageResponse.team_message_data(team, data_handler=data_handler) for team in teams]
             return Alliance(team1=team_objects[0], team2=team_objects[1], color=color)
         except Exception as e:
             raise ValueError(f"Error in form_alliance for color {color} with teams {teams}") from e

@@ -36,6 +36,7 @@ class Team:
     overallRank: float = field(default_factory=float)
     penalties: float = field(default_factory=float)
     penaltyRank: float = field(default_factory=float)
+    eventDate: str = field(default_factory=str)
     profileUpdate: str = field(default_factory=str)
 
     def __post_init__(self):
@@ -55,6 +56,7 @@ class Team:
             f"Endgame OPR: {self.endgameOPR:.2f} (Rank: {self.endgameRank})\n"
             f"Overall OPR: {self.overallOPR:.2f} (Rank: {self.overallRank})\n"
             f"Penalties OPR: {self.penalties:.2f} (Rank: {self.penaltyRank})\n"
+            f"Event Date: {self.eventDate}\n"
             f"Last Updated: {self.profileUpdate}"
         )
 
