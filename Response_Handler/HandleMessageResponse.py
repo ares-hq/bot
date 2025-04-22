@@ -17,7 +17,7 @@ class HandleMessageResponse:
             team_summary = data_handler.get_response(team_number)
             
             if not team_summary.teamNumber or team_summary.teamNumber <= 0:
-                raise ValueError(f"Invalid team number {team_summary.stats.teamNumber}")
+                raise ValueError(f"Invalid team number {team_summary.teamNumber}")
                    
             return team_summary
         
@@ -41,7 +41,7 @@ class HandleMessageResponse:
         try:
             redAlliance[0] = int(redAlliance[0])
             redAlliance[1] = int(redAlliance[1])
-            if blueAlliance is not None:
+            if blueAlliance is not None and len(blueAlliance) == 2:
                 blueAlliance[0] = int(blueAlliance[0])
                 blueAlliance[1] = int(blueAlliance[1])
             return Match(redAlliance=HandleMessageResponse.form_alliance('Red', redAlliance),

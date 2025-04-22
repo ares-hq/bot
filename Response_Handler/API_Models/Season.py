@@ -1,6 +1,6 @@
 from dataclasses import dataclass,field
 from typing import Dict
-from .Event import Event
+from .Event import Event, Team
 
 @dataclass
 class Season:
@@ -14,7 +14,8 @@ class Season:
     seasonCode: str = field(default_factory=str)
     totalTeams: int = field(default_factory=int)
     numAwarded: int = field(default_factory=int)
-    events: Dict[str,Event] = field(default_factory=dict)
+    events: Dict[str, Event] = field(default_factory=dict)
+    teams: Dict[int, Team] = field(default_factory=dict)
 
 @dataclass
 class History:

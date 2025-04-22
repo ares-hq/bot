@@ -131,9 +131,9 @@ class ImageCreator:
         box_width_middle_bottom = 300
         box_width_right_bottom = 425
         radius = 5
-        draw_category_box(25, 125, box_width_left, [team_names[0], f"{team_scores.team1.stats.autoOPR:.2f}", f"{team_scores.team1.stats.teleOPR:.2f}", f"{team_scores.team1.stats.endgameOPR:.2f}", f"{team_scores.team1.stats.overallOPR:.2f}"], ImageCreator.INTO_THE_DEEP_COLOR, radius=radius)
+        draw_category_box(25, 125, box_width_left, [team_names[0], f"{team_scores.team1.autoOPR:.2f}", f"{team_scores.team1.teleOPR:.2f}", f"{team_scores.team1.endgameOPR:.2f}", f"{team_scores.team1.overallOPR:.2f}"], ImageCreator.INTO_THE_DEEP_COLOR, radius=radius)
         draw_category_box(300, 125, box_width_middle, ["Team", "Auto OPR", "TeleOp OPR", "Endgame OPR", "Total OPR"], radius=radius)
-        draw_category_box(525, 125, box_width_right, [team_names[1], f"{team_scores.team2.stats.autoOPR:.2f}", f"{team_scores.team2.stats.teleOPR:.2f}", f"{team_scores.team2.stats.endgameOPR:.2f}", f"{team_scores.team2.stats.overallOPR:.2f}"], ImageCreator.INTO_THE_DEEP_COLOR, radius=radius)        
+        draw_category_box(525, 125, box_width_right, [team_names[1], f"{team_scores.team2.autoOPR:.2f}", f"{team_scores.team2.teleOPR:.2f}", f"{team_scores.team2.endgameOPR:.2f}", f"{team_scores.team2.overallOPR:.2f}"], ImageCreator.INTO_THE_DEEP_COLOR, radius=radius)        
         
         header_text = "Estimated Alliance Score"
         header_bbox = draw.textbbox((0, 0), header_text, font=ImageCreator.font_medium)
@@ -142,9 +142,9 @@ class ImageCreator:
         draw.text(header_position, header_text, fill=ImageCreator.TEXT_COLOR, font=ImageCreator.font_medium)
 
         draw_category_box(25, 375, box_width_middle_bottom, ["AUTO", "TELEOP", "ENDGAME"], radius=radius)
-        draw_category_box(350, 375, box_width_right_bottom, [f"{float(team_scores.team1.stats.autoOPR) + float(team_scores.team2.stats.autoOPR):.0f}", f"{float(team_scores.team1.stats.teleOPR) + float(team_scores.team2.stats.teleOPR):.0f}", f"{float(team_scores.team1.stats.endgameOPR) + float(team_scores.team2.stats.endgameOPR):.0f}"], ImageCreator.INTO_THE_DEEP_COLOR, radius=radius)
+        draw_category_box(350, 375, box_width_right_bottom, [f"{float(team_scores.team1.autoOPR) + float(team_scores.team2.autoOPR):.0f}", f"{float(team_scores.team1.teleOPR) + float(team_scores.team2.teleOPR):.0f}", f"{float(team_scores.team1.endgameOPR) + float(team_scores.team2.endgameOPR):.0f}"], ImageCreator.INTO_THE_DEEP_COLOR, radius=radius)
 
         draw_category_box(25, 520, box_width_middle_bottom, ["FINAL SCORE"], radius=radius)
-        draw_category_box(350, 520, box_width_right_bottom, [f"{float(team_scores.team1.stats.overallOPR) + float(team_scores.team2.stats.overallOPR):.0f}"], ImageCreator.INTO_THE_DEEP_COLOR, radius=radius)
+        draw_category_box(350, 520, box_width_right_bottom, [f"{float(team_scores.team1.overallOPR) + float(team_scores.team2.overallOPR):.0f}"], ImageCreator.INTO_THE_DEEP_COLOR, radius=radius)
         
         return img
