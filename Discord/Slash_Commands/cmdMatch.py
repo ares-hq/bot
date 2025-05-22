@@ -26,7 +26,7 @@ class cmdMatch(commands.Cog):
                 await interaction.response.send_message(embed=embed, ephemeral=True)
                 return
 
-            match = msg.match_message_data(red_alliance_teams, blue_alliance_teams)
+            match = msg.match_message_data(redAlliance=red_alliance_teams, blueAlliance=blue_alliance_teams)
             winner = match.winner if blue_alliance_teams else None
 
             image_name = "match_scoreboard.png"

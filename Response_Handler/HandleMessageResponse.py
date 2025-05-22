@@ -18,7 +18,6 @@ class HandleMessageResponse:
             
             if not team_summary.teamNumber or team_summary.teamNumber <= 0:
                 raise ValueError(f"Invalid team number {team_summary.teamNumber}")
-                   
             return team_summary
         
         except KeyError as e:
@@ -32,6 +31,7 @@ class HandleMessageResponse:
             team_objects = [HandleMessageResponse.team_message_data(team, data_handler=data_handler) for team in teams]
             return Alliance(team1=team_objects[0], team2=team_objects[1], color=color)
         except Exception as e:
+            print(e)
             raise ValueError(f"Error in form_alliance for color {color} with teams {teams}") from e
 
     @staticmethod
@@ -41,6 +41,7 @@ class HandleMessageResponse:
             redAlliance[0] = int(redAlliance[0])
             redAlliance[1] = int(redAlliance[1])
             data_handler = SupabaseHandler()
+
             if blueAlliance is not None and len(blueAlliance) == 2:
                 blueAlliance[0] = int(blueAlliance[0])
                 blueAlliance[1] = int(blueAlliance[1])

@@ -31,10 +31,21 @@ class SupabaseHandler:
         """
         if table_name == "null":
             table_name = f"season{self.find_year()}"
+
         if table_name not in self.team_data:
             self.team_data[table_name] = {}
 
-            raw_data = self.supabase.table(self.table).select("*").execute().data or []
+        if team_number not in self.team_data[table_name]:
+            raw_data = (
+                self.supabase
+                .table(self.table)
+                .select("*")
+                .eq("teamNumber", team_number)
+                .limit(1)
+                .execute()
+                .data or []
+            )
+
             for row in raw_data:
                 tnum = row.get("teamNumber")
                 if tnum is not None:
@@ -64,5 +75,6 @@ class SupabaseHandler:
         current_date = datetime.now()
         return current_date.year - 1 if current_date.month < 8 else current_date.year
 
+# Example usage
 # SupabaseHandler = SupabaseHandler()
 # print(SupabaseHandler.get_response(14584))
