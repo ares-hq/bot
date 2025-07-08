@@ -1,6 +1,16 @@
-.env
-.history
-__pycache__
-
-.venv/
+### Virtual Environments ###
 ftcscout/
+.venv/
+venv/
+
+### Environment Variables ###
+.env
+
+### Cached Data ###
+.history/
+__pycache__/
+
+### Unwanted Files ###
+*.css
+*.png
+*.log
