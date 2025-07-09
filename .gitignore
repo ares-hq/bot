@@ -13,3 +13,5 @@ ftcscout/
 *.css
 *.png
 *.log
+
+**/.DS_Store
