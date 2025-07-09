@@ -1,6 +1,5 @@
 from Response_Handler.SupabaseHandler import SupabaseHandler
-from Response_Handler.API_Models import Team
-from Response_Handler.API_Models.Event import Alliance, Match
+from .cache.ares_cache import Team, Alliance, Match
 
 class HandleMessageResponse:
     """
