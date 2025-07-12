@@ -6,10 +6,10 @@ from datetime import datetime
 class State:
     VERSION = "v2.0.0"
     DEVELOPERS = "<@291420737204649985> and <@751915057973035058>"
-    NAME = "FTCScout"
+    NAME = "ARES"
     AVATAR = "https://via.placeholder.com/150"
     SIGNATURE = f"Powered by {NAME} {VERSION}"
-    CHANNELS = ["bot", "bot-channel", str(NAME).lower(), "ftc-scout", "scout", "ftc", "general"]
+    CHANNELS = ["bot", "bot-channel", str(NAME).lower(), "ares", "scout", "ftc", "general"]
     COMMANDS ={
             "team": {
                 "Description": "Displays team *FIRST* information",
