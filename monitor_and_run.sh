@@ -3,7 +3,7 @@
 BOT_SCRIPT="ARES.py"
 LOG_FILE="ARES.log"
 VENV_DIR="venv"
-BRANCH="main-dev"
+BRANCH="main"
 
 install_pip() {
     if ! command -v pip3 &> /dev/null; then
