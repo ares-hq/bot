@@ -49,6 +49,6 @@ class HandleMessageResponse:
         except Exception as e:
             raise ValueError("Error in match_message_data") from e
 
-# Example usage
-# message = HandleMessageResponse.match_message_data([14584, 14584])
-# print(message)
+if __name__ == "__main__":
+    #Example usage
+    print(HandleMessageResponse.match_message_data([14584, 14584]))

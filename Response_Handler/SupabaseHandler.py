@@ -15,7 +15,7 @@ class SupabaseHandler:
                 raise RuntimeError("SUPABASE_URL and SUPABASE_KEY must be set in .env")
         
         self.supabase: Client = create_client(supabase_url, supabase_key)
-        self.table = "season_2024"
+        self.table = f"season_{self.find_year()}"
         self.team_data = {}
 
     def get_response(self, team_number, table_name="null"):

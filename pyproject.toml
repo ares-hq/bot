@@ -1,0 +1,20 @@
+[project]
+name = "ares-bot"
+version = "0.1.0"
+authors = []
+requires-python = ">=3.14"
+dependencies = [
+    "audioop-lts>=0.2.2",
+    "datetime>=6.0",
+    "discord-py>=2.6.4",
+    "flask>=3.1.2",
+    "html2image>=2.0.7",
+    "markdown>=3.10",
+    "numpy>=2.4.1",
+    "pillow>=12.1.0",
+    "python-dotenv>=1.2.1",
+    "pytz>=2025.2",
+    "requests>=2.32.5",
+    "supabase>=2.27.2",
+    "tqdm>=4.67.1",
+]
