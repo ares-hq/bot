@@ -29,7 +29,7 @@ class ARES(commands.Bot):
 
     async def on_ready(self):
         print(f"{self.user.name} ({self.user.id}) is now live in {len(self.guilds)} servers!")
-        await self.change_presence(activity=discord.Game("Into the Deep 🌊"))
+        await self.change_presence(activity=discord.Game("Decode 🧭"))
 
     async def on_message(self, message: discord.Message):
         if self.debug_mode and message.channel.id not in self.debug_channel_ids:
