@@ -1,100 +1,100 @@
 #!/bin/bash
+set -euo pipefail
 
-BOT_SCRIPT="ARES.py"
-LOG_FILE="ARES.log"
-VENV_DIR="venv"
-BRANCH="main"
+# Configuration
+readonly BOT_SCRIPT="ARES.py"
+readonly LOG_FILE="ARES.log"
+readonly VENV_DIR=".venv"
+readonly BRANCH="main"
+readonly CHECK_INTERVAL=60
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-install_pip() {
-    if ! command -v pip3 &> /dev/null; then
-        echo "pip3 not found. Installing pip3..."
-        sudo apt update
-        sudo apt install -y python3-pip
-    else
-        echo "pip3 is already installed."
+cd "$SCRIPT_DIR"
+
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+}
+
+install_uv() {
+    if ! command -v uv &> /dev/null; then
+        log "Installing uv..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        export PATH="$HOME/.cargo/bin:$PATH"
     fi
 }
 
-create_venv() {
+setup_environment() {
     if [ ! -d "$VENV_DIR" ]; then
-        echo "Creating virtual environment..."
-        python3 -m venv $VENV_DIR
+        log "Creating virtual environment..."
+        uv venv "$VENV_DIR"
     fi
-    echo "Activating virtual environment..."
-    source $VENV_DIR/bin/activate
-}
-
-install_requirements() {
-    if [ -f "requirements.txt" ]; then
-        echo "Installing dependencies from requirements.txt..."
-        pip install -r requirements.txt
-    else
-        echo "requirements.txt not found, skipping dependency installation."
+    
+    log "Installing dependencies..."
+    if [ -f "pyproject.toml" ]; then
+        uv sync
+    elif [ -f "requirements.txt" ]; then
+        uv pip install -r requirements.txt
     fi
 }
 
 stop_bot() {
-    local PIDS
-    PIDS=$(pgrep -f "$BOT_SCRIPT")  # Find all process IDs for the bot script
-
-    if [ -n "$PIDS" ]; then
-        echo "Stopping the following bot processes: $PIDS"
-        kill $PIDS  # Send termination signal to all matching PIDs
-        wait $PIDS 2>/dev/null  # Wait for processes to terminate
-        echo "All bot processes stopped."
-    else
-        echo "No bot process is currently running."
+    local pids
+    pids=$(pgrep -f "python.*$BOT_SCRIPT" || true)
+    
+    if [ -n "$pids" ]; then
+        log "Stopping bot processes: $pids"
+        kill $pids 2>/dev/null || true
+        sleep 2
+        
+        # Force kill if still running
+        pids=$(pgrep -f "python.*$BOT_SCRIPT" || true)
+        if [ -n "$pids" ]; then
+            kill -9 $pids 2>/dev/null || true
+        fi
     fi
 }
 
 start_bot() {
     stop_bot
-    echo "Starting the bot..."
-    nohup python3 $BOT_SCRIPT > $LOG_FILE 2>&1 &
-    echo "Bot started."
+    log "Starting bot..."
+    nohup "$VENV_DIR/bin/python" "$BOT_SCRIPT" > "$LOG_FILE" 2>&1 &
+    log "Bot started with PID $!"
 }
 
-install_pip
+check_for_updates() {
+    if ! git fetch origin "$BRANCH" 2>&1 | grep -q "fatal"; then
+        local local_hash remote_hash
+        local_hash=$(git rev-parse HEAD)
+        remote_hash=$(git rev-parse "origin/$BRANCH")
+        
+        if [ "$local_hash" != "$remote_hash" ]; then
+            log "Update detected: $local_hash -> $remote_hash"
+            git reset --hard "origin/$BRANCH" || {
+                log "ERROR: Failed to update repository"
+                return 1
+            }
+            return 0
+        fi
+    else
+        log "WARNING: Git fetch failed"
+        return 1
+    fi
+    return 2
+}
 
-create_venv
-
-install_requirements
-
+# Initialize
+log "Initializing bot monitor..."
+install_uv
+setup_environment
 start_bot
 
+# Main loop
 while true; do
-    echo "Checking for updates..."
-
-    git fetch origin $BRANCH > fetch_output.log 2>&1
-
-    if [ $? -ne 0 ]; then
-        echo "Git fetch failed! Check fetch_output.log for details."
-        sleep 60
-        continue
-    fi
-
-    LOCAL=$(git rev-parse HEAD)
-    REMOTE=$(git rev-parse origin/$BRANCH)
-
-    echo "LOCAL Commit Hash: $LOCAL"
-    echo "REMOTE Commit Hash: $REMOTE"
-
-    if [ "$LOCAL" != "$REMOTE" ]; then
-        echo "Changes detected. Force pulling updates from $BRANCH..."
-        git reset --hard origin/$BRANCH > pull_output.log 2>&1
-
-        if [ $? -ne 0 ]; then
-            echo "Git pull failed! Check pull_output.log for details."
-            sleep 60
-            continue
-        fi
-
-        echo "Updating dependencies after pull..."
-        install_requirements
-
-        echo "Restarting the bot..."
+    sleep "$CHECK_INTERVAL"
+    
+    if check_for_updates; then
+        log "Updating dependencies..."
+        setup_environment
         start_bot
     fi
-
-    sleep 60
 done
