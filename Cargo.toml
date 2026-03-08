@@ -1,0 +1,21 @@
+[package]
+name = "bot"
+version = "3.0.0"
+edition = "2024"
+
+[dependencies]
+ab_glyph = "0.2"
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+dotenvy = "0.15"
+image = "0.25"
+imageproc = "0.25"
+postgrest = "1.6"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serenity = { version = "0.12", default-features = false, features = ["client", "gateway", "model", "rustls_backend", "builder"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "fs"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+cache = { git = "https://github.com/ares-hq/cache.git", branch = "main" }
