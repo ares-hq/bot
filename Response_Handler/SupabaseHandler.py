@@ -70,10 +70,9 @@ class SupabaseHandler:
 
         return self.team_data[table_name].get(team_number, Team())
     
-    @staticmethod     
-    def find_year():
-        current_date = datetime.now()
-        return current_date.year - 1 if current_date.month < 8 else current_date.year
+    @staticmethod
+    def find_year(date:datetime=datetime.now()):
+        return date.year - 1 if date.month < 8 else date.year
 
 # Example usage
 # SupabaseHandler = SupabaseHandler()

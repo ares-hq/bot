@@ -1,3 +1,0 @@
-[submodule "Response_Handler/cache"]
-	path = Response_Handler/cache
-	url = https://github.com/ARES-Digital-Hub/ARES-Cache.git

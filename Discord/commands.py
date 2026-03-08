@@ -21,17 +21,18 @@ class Commands:
     def __init__(self, bot):
         self.bot = bot
         self.visual = State()
+        self.cmds = (
+            cmdTeam,
+            cmdMatch,
+            cmdFavorite,
+            cmdHelp,
+            cmdDeveloper,
+        )
 
     async def setup(self):
         try:
-            for cmd in (
-                cmdTeam(self.bot),
-                cmdMatch(self.bot),
-                cmdFavorite(self.bot),
-                cmdHelp(self.bot),
-                cmdDeveloper(self.bot)
-            ):
-                await self.bot.add_cog(cmd)
+            for cmd in self.cmds:
+                await self.bot.add_cog(cmd(self.bot))
             print("Slash Commands Compiled.")
         except Exception as e:
             print(f"Failed to Compile Commands: {e}")
