@@ -1,21 +1,28 @@
 use anyhow::{Context, Result};
 use chrono::{Datelike, Utc};
 use postgrest::Postgrest;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TeamData {
+    #[serde(default, deserialize_with = "deserialize_i32_default")]
     pub team_number: i32,
+    #[serde(default, deserialize_with = "deserialize_string_default")]
     pub team_name: String,
     pub sponsors: Option<String>,
     pub location: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_f64_default")]
     pub auto_opr: f64,
+    #[serde(default, deserialize_with = "deserialize_f64_default")]
     pub tele_opr: f64,
+    #[serde(default, deserialize_with = "deserialize_f64_default")]
     pub endgame_opr: f64,
+    #[serde(default, deserialize_with = "deserialize_f64_default")]
     pub overall_opr: f64,
+    #[serde(default, deserialize_with = "deserialize_f64_default")]
     pub penalties: f64,
     pub auto_rank: Option<i32>,
     pub tele_rank: Option<i32>,
@@ -24,6 +31,41 @@ pub struct TeamData {
     pub penalty_rank: Option<i32>,
     pub profile_update: Option<String>,
     pub event_date: Option<String>,
+}
+
+fn deserialize_i32_default<'de, D>(deserializer: D) -> std::result::Result<i32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value: Option<serde_json::Value> = Option::deserialize(deserializer)?;
+    let parsed = value
+        .as_ref()
+        .and_then(|v| v.as_i64().or_else(|| v.as_str().and_then(|s| s.parse::<i64>().ok())))
+        .unwrap_or(0);
+
+    Ok(parsed as i32)
+}
+
+fn deserialize_f64_default<'de, D>(deserializer: D) -> std::result::Result<f64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value: Option<serde_json::Value> = Option::deserialize(deserializer)?;
+    Ok(value
+        .as_ref()
+        .and_then(|v| v.as_f64().or_else(|| v.as_str().and_then(|s| s.parse::<f64>().ok())))
+        .unwrap_or(0.0))
+}
+
+fn deserialize_string_default<'de, D>(deserializer: D) -> std::result::Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value: Option<serde_json::Value> = Option::deserialize(deserializer)?;
+    Ok(value
+        .as_ref()
+        .and_then(|v| v.as_str().map(ToOwned::to_owned))
+        .unwrap_or_else(|| "Unknown".to_owned()))
 }
 
 pub struct SupabaseHandler {
@@ -81,7 +123,10 @@ impl SupabaseHandler {
             .await
             .context("Failed to read response body")?;
         let mut teams: Vec<TeamData> =
-            serde_json::from_str(&body).context("Failed to parse team data")?;
+            serde_json::from_str(&body).with_context(|| {
+                let snippet: String = body.chars().take(300).collect();
+                format!("Failed to parse team data. Response starts with: {}", snippet)
+            })?;
 
         let team = teams.pop().context("Team not found")?;
 

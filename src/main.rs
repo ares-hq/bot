@@ -66,7 +66,7 @@ impl EventHandler for Handler {
     }
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::Command(command) = interaction {
+        if let Interaction::Command(command) = &interaction {
             // Check debug mode channel filtering
             if self.config.debug_mode {
                 let channel_u64 = command.channel_id.get();
@@ -93,11 +93,11 @@ impl EventHandler for Handler {
 
             let result = match command.data.name.as_str() {
                 "team" => {
-                    commands::team::run(&ctx, &command, &self.supabase, &self.favorites).await
+                    commands::team::run(&ctx, command, &self.supabase, &self.favorites).await
                 }
-                "match" => commands::match_cmd::run(&ctx, &command, &self.supabase).await,
-                "favorite" => commands::favorite::run(&ctx, &command, &self.favorites).await,
-                "help" => commands::help::run(&ctx, &command).await,
+                "match" => commands::match_cmd::run(&ctx, command, &self.supabase).await,
+                "favorite" => commands::favorite::run(&ctx, command, &self.favorites).await,
+                "help" => commands::help::run(&ctx, command).await,
                 _ => {
                     let embed = error_embed("Unknown Command", "This command is not recognized.");
                     let _ = command
@@ -116,6 +116,13 @@ impl EventHandler for Handler {
 
             if let Err(e) = result {
                 error!("Error handling command '{}': {}", command.data.name, e);
+            }
+            return;
+        }
+
+        if let Interaction::Component(component) = &interaction {
+            if let Err(e) = commands::help::handle_component(&ctx, component).await {
+                error!("Error handling component interaction: {}", e);
             }
         }
     }
