@@ -73,7 +73,7 @@ pub async fn run(
         return Ok(());
     }
 
-    let team_number = match team_number_raw.unwrap().parse::<i32>() {
+    let team_number = match team_number_raw.unwrap().parse::<u32>() {
         Ok(v) => v,
         Err(_) => {
             let embed = error_embed("Error", "Team Number must be valid.");

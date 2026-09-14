@@ -5,7 +5,7 @@ mod config;
 mod favorites;
 mod image_generator;
 mod match_data;
-mod supabase_handler;
+mod teams;
 
 use anyhow::Result;
 use serenity::all::{
@@ -18,10 +18,10 @@ use tracing::{error, info};
 use bot_state::error_embed;
 use config::Config;
 use favorites::FavoritesManager;
-use supabase_handler::SupabaseHandler;
+use teams::Teams;
 
 struct Handler {
-    supabase: Arc<SupabaseHandler>,
+    teams: Arc<Teams>,
     favorites: Arc<FavoritesManager>,
     config: Arc<Config>,
 }
@@ -92,10 +92,8 @@ impl EventHandler for Handler {
             }
 
             let result = match command.data.name.as_str() {
-                "team" => {
-                    commands::team::run(&ctx, command, &self.supabase, &self.favorites).await
-                }
-                "match" => commands::match_cmd::run(&ctx, command, &self.supabase).await,
+                "team" => commands::team::run(&ctx, command, &self.teams, &self.favorites).await,
+                "match" => commands::match_cmd::run(&ctx, command, &self.teams).await,
                 "favorite" => commands::favorite::run(&ctx, command, &self.favorites).await,
                 "help" => commands::help::run(&ctx, command).await,
                 _ => {
@@ -142,7 +140,7 @@ async fn main() -> Result<()> {
     info!("Configuration loaded");
 
     // Initialize services
-    let supabase = SupabaseHandler::new(config.supabase_url.clone(), config.supabase_key.clone());
+    let teams = Teams::new(config.supabase_url.clone(), config.supabase_key.clone());
     let favorites = FavoritesManager::new();
 
     info!("Services initialized");
@@ -151,7 +149,7 @@ async fn main() -> Result<()> {
     let intents = GatewayIntents::GUILDS | GatewayIntents::DIRECT_MESSAGES;
 
     let handler = Handler {
-        supabase: Arc::new(supabase),
+        teams: Arc::new(teams),
         favorites: Arc::new(favorites),
         config: Arc::new(config.clone()),
     };

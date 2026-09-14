@@ -1,9 +1,8 @@
 use crate::bot_state::{Colors, DEVELOPERS, VERSION};
 use anyhow::Result;
 use serenity::all::{
-    ButtonStyle, CommandInteraction, ComponentInteraction, Context, CreateActionRow,
-    CreateButton, CreateCommand, CreateEmbed, CreateInteractionResponse,
-    CreateInteractionResponseMessage,
+    ButtonStyle, CommandInteraction, ComponentInteraction, Context, CreateActionRow, CreateButton,
+    CreateCommand, CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage,
 };
 
 const HELP_TOTAL_PAGES: usize = 3;
@@ -114,10 +113,7 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction) -> Result<()> 
     Ok(())
 }
 
-pub async fn handle_component(
-    ctx: &Context,
-    interaction: &ComponentInteraction,
-) -> Result<bool> {
+pub async fn handle_component(ctx: &Context, interaction: &ComponentInteraction) -> Result<bool> {
     let Some(raw_page) = interaction.data.custom_id.strip_prefix("help:page:") else {
         return Ok(false);
     };

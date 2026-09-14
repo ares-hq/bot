@@ -1,6 +1,6 @@
 use crate::alliance::{Alliance, AllianceColor};
-use crate::supabase_handler::{SupabaseHandler, TeamData};
-use anyhow::{Context, Result};
+use crate::teams::Teams;
+use anyhow::Result;
 
 pub struct Match {
     pub red_alliance: Alliance,
@@ -9,14 +9,14 @@ pub struct Match {
 
 impl Match {
     pub async fn create(
-        red_teams: Vec<i32>,
-        blue_teams: Option<Vec<i32>>,
-        handler: &SupabaseHandler,
+        red_teams: Vec<u32>,
+        blue_teams: Option<Vec<u32>>,
+        teams: &Teams,
     ) -> Result<Self> {
-        let red_alliance = Self::form_alliance(red_teams, AllianceColor::Red, handler).await?;
+        let red_alliance = Self::form_alliance(red_teams, AllianceColor::Red, teams).await?;
 
         let blue_alliance = if let Some(blue) = blue_teams {
-            Self::form_alliance(blue, AllianceColor::Blue, handler).await?
+            Self::form_alliance(blue, AllianceColor::Blue, teams).await?
         } else {
             Alliance::new(None, None, AllianceColor::Blue)
         };
@@ -28,18 +28,25 @@ impl Match {
     }
 
     async fn form_alliance(
-        team_numbers: Vec<i32>,
+        team_numbers: Vec<u32>,
         color: AllianceColor,
-        handler: &SupabaseHandler,
+        teams: &Teams,
     ) -> Result<Alliance> {
         if team_numbers.len() != 2 {
             return Ok(Alliance::new(None, None, color));
         }
 
-        let team1 = handler.get_team(team_numbers[0]).await.ok();
-        let team2 = handler.get_team(team_numbers[1]).await.ok();
+        let team1 = teams.get_team(team_numbers[0]).await.ok();
+        let team2 = teams.get_team(team_numbers[1]).await.ok();
 
         Ok(Alliance::new(team1, team2, color))
+    }
+
+    /// `(red, blue)` totals: own auto+teleop+endgame plus the opponent's fouls.
+    pub fn totals(&self) -> (f64, f64) {
+        let r = self.red_alliance.calculate_score();
+        let b = self.blue_alliance.calculate_score();
+        (r.total + b.penalties, b.total + r.penalties)
     }
 
     pub fn winner(&self) -> &str {
@@ -47,8 +54,7 @@ impl Match {
             return "N/A";
         }
 
-        let red_score = self.red_alliance.calculate_score().total;
-        let blue_score = self.blue_alliance.calculate_score().total;
+        let (red_score, blue_score) = self.totals();
 
         if (red_score - blue_score).abs() < 0.01 {
             "Tie"

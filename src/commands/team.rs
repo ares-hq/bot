@@ -1,6 +1,6 @@
 use crate::bot_state::{Colors, error_embed, warning_embed};
 use crate::favorites::FavoritesManager;
-use crate::supabase_handler::SupabaseHandler;
+use crate::teams::Teams;
 use anyhow::Result;
 use serenity::all::{
     CommandInteraction, Context, CreateCommand, CreateEmbed, CreateInteractionResponse,
@@ -10,7 +10,7 @@ use serenity::all::{
 pub async fn run(
     ctx: &Context,
     interaction: &CommandInteraction,
-    supabase: &SupabaseHandler,
+    teams: &Teams,
     favorites: &FavoritesManager,
 ) -> Result<()> {
     let team_number_raw = interaction
@@ -21,7 +21,7 @@ pub async fn run(
         .and_then(|opt| opt.value.as_str())
         .ok_or_else(|| anyhow::anyhow!("Team number is required"))?;
 
-    let team_number: i32 = match team_number_raw.parse() {
+    let team_number: u32 = match team_number_raw.parse() {
         Ok(v) => v,
         Err(_) => {
             let embed = warning_embed("Warning", "Team number must be numerical.");
@@ -48,7 +48,7 @@ pub async fn run(
         .await?;
 
     // Fetch team data
-    let team_result = supabase.get_team(team_number).await;
+    let team_result = teams.get_team(team_number).await;
 
     match team_result {
         Ok(team) => {
@@ -59,22 +59,30 @@ pub async fn run(
             };
 
             let star = if is_favorite { "⭐" } else { "" };
-            let title = format!("{} Team {} - {}", star, team.team_number, team.team_name);
+            let title = format!("{} Team {} - {}", star, team.number, team.name);
 
-            let location = team.location.as_deref().unwrap_or("Unknown");
-            let sponsors = team.sponsors.as_deref().unwrap_or("None listed");
+            let location = if team.location.is_empty() {
+                "Unknown"
+            } else {
+                &team.location
+            };
+            let sponsors = if team.sponsors.is_empty() {
+                "None listed"
+            } else {
+                &team.sponsors
+            };
 
             let embed = CreateEmbed::new()
                 .title(title)
                 .color(Colors::FIRST_BLUE)
-                .field("Team Number", team.team_number.to_string(), true)
-                .field("Team Name", &team.team_name, true)
+                .field("Team Number", team.number.to_string(), true)
+                .field("Team Name", &team.name, true)
                 .field("Location", location, true)
                 .field("", "", false)
-                .field("Auto OPR", format!("{:.2}", team.auto_opr), true)
-                .field("TeleOp OPR", format!("{:.2}", team.tele_opr), true)
-                .field("Endgame OPR", format!("{:.2}", team.endgame_opr), true)
-                .field("Overall OPR", format!("{:.2}", team.overall_opr), true)
+                .field("Auto OPR", format!("{:.2}", team.auto), true)
+                .field("TeleOp OPR", format!("{:.2}", team.teleop), true)
+                .field("Endgame OPR", format!("{:.2}", team.endgame), true)
+                .field("Overall OPR", format!("{:.2}", team.overall), true)
                 .field("Penalties", format!("{:.2}", team.penalties), true)
                 .field("", "", true)
                 .field("Sponsors", sponsors, false)

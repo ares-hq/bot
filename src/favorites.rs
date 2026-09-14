@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock};
 
 #[derive(Clone)]
 pub struct FavoritesManager {
-    favorites: Arc<RwLock<HashMap<GuildId, HashSet<i32>>>>,
+    favorites: Arc<RwLock<HashMap<GuildId, HashSet<u32>>>>,
 }
 
 impl FavoritesManager {
@@ -14,13 +14,13 @@ impl FavoritesManager {
         }
     }
 
-    pub fn add_favorite(&self, guild_id: GuildId, team_number: i32) -> bool {
+    pub fn add_favorite(&self, guild_id: GuildId, team_number: u32) -> bool {
         let mut favorites = self.favorites.write().unwrap();
         let guild_favorites = favorites.entry(guild_id).or_insert_with(HashSet::new);
         guild_favorites.insert(team_number)
     }
 
-    pub fn remove_favorite(&self, guild_id: GuildId, team_number: i32) -> bool {
+    pub fn remove_favorite(&self, guild_id: GuildId, team_number: u32) -> bool {
         let mut favorites = self.favorites.write().unwrap();
         if let Some(guild_favorites) = favorites.get_mut(&guild_id) {
             guild_favorites.remove(&team_number)
@@ -29,7 +29,7 @@ impl FavoritesManager {
         }
     }
 
-    pub fn is_favorite(&self, guild_id: GuildId, team_number: i32) -> bool {
+    pub fn is_favorite(&self, guild_id: GuildId, team_number: u32) -> bool {
         let favorites = self.favorites.read().unwrap();
         favorites
             .get(&guild_id)
@@ -37,7 +37,7 @@ impl FavoritesManager {
             .unwrap_or(false)
     }
 
-    pub fn toggle_favorite(&self, guild_id: GuildId, team_number: i32) -> bool {
+    pub fn toggle_favorite(&self, guild_id: GuildId, team_number: u32) -> bool {
         if self.is_favorite(guild_id, team_number) {
             self.remove_favorite(guild_id, team_number);
             false
@@ -47,12 +47,12 @@ impl FavoritesManager {
         }
     }
 
-    pub fn list_favorites(&self, guild_id: GuildId) -> Vec<i32> {
+    pub fn list_favorites(&self, guild_id: GuildId) -> Vec<u32> {
         let favorites = self.favorites.read().unwrap();
         favorites
             .get(&guild_id)
             .map(|set| {
-                let mut vec: Vec<i32> = set.iter().copied().collect();
+                let mut vec: Vec<u32> = set.iter().copied().collect();
                 vec.sort();
                 vec
             })

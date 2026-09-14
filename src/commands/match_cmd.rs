@@ -1,18 +1,14 @@
 use crate::bot_state::{Colors, error_embed, warning_embed};
 use crate::image_generator::ImageGenerator;
 use crate::match_data::Match;
-use crate::supabase_handler::SupabaseHandler;
+use crate::teams::Teams;
 use anyhow::Result;
 use serenity::all::{
     CommandInteraction, CommandOptionType, Context, CreateAttachment, CreateCommand,
     CreateCommandOption, CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage,
 };
 
-pub async fn run(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-    supabase: &SupabaseHandler,
-) -> Result<()> {
+pub async fn run(ctx: &Context, interaction: &CommandInteraction, teams: &Teams) -> Result<()> {
     let red_alliance_raw = interaction
         .data
         .options
@@ -28,10 +24,10 @@ pub async fn run(
         .find(|opt| opt.name == "blue_alliance")
         .and_then(|opt| opt.value.as_str());
 
-    let parse_alliance = |value: &str| -> Option<Vec<i32>> {
-        let teams: Vec<i32> = value
+    let parse_alliance = |value: &str| -> Option<Vec<u32>> {
+        let teams: Vec<u32> = value
             .split_whitespace()
-            .filter_map(|s| s.parse::<i32>().ok())
+            .filter_map(|s| s.parse::<u32>().ok())
             .collect();
         if teams.len() == 2 { Some(teams) } else { None }
     };
@@ -90,12 +86,12 @@ pub async fn run(
         .await?;
 
     // Create match data
-    let match_result = Match::create(red_teams, blue_option, supabase).await;
+    let match_result = Match::create(red_teams, blue_option, teams).await;
 
     match match_result {
         Ok(match_data) => {
-            // Generate match image
-            let image = if match_data.blue_alliance.is_empty() {
+            // Generate match image (PNG bytes)
+            let bytes = if match_data.blue_alliance.is_empty() {
                 ImageGenerator::create_alliance_image(&match_data.red_alliance)
             } else {
                 ImageGenerator::create_match_image(
@@ -111,8 +107,7 @@ pub async fn run(
                 _ => "Match Incomplete",
             };
 
-            let red_score = match_data.red_alliance.calculate_score();
-            let blue_score = match_data.blue_alliance.calculate_score();
+            let (red_total, blue_total) = match_data.totals();
 
             let embed = CreateEmbed::new()
                 .title("Match Scoreboard")
@@ -124,22 +119,16 @@ pub async fn run(
                 .description(winner_text)
                 .field(
                     "Red Alliance",
-                    format!("Total: {} points", red_score.total),
+                    format!("Total: {red_total:.0} points"),
                     true,
                 )
                 .field(
                     "Blue Alliance",
-                    format!("Total: {} points", blue_score.total),
+                    format!("Total: {blue_total:.0} points"),
                     true,
                 )
                 .image("attachment://match.png");
 
-            // Convert image to PNG bytes
-            let mut bytes: Vec<u8> = Vec::new();
-            image.write_to(
-                &mut std::io::Cursor::new(&mut bytes),
-                image::ImageFormat::Png,
-            )?;
             let attachment = CreateAttachment::bytes(bytes, "match.png");
 
             interaction

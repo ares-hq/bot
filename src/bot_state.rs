@@ -5,7 +5,7 @@ pub const VERSION: &str = concat!("v", env!("CARGO_PKG_VERSION"));
 pub const NAME: &str = "ARES";
 pub const DEVELOPERS: &str = "<@291420737204649985> and <@751915057973035058>";
 pub const CHANNELS: &[&str] = &["bot", "bot-channel", "ares", "scout", "ftc", "general"];
-pub const PRESENCE: &str = "Decode 🧭";
+pub const PRESENCE: &str = "Biobuzz 🐝";
 
 pub struct Colors;
 
