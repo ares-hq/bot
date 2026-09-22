@@ -9,6 +9,8 @@ pub struct Config {
     pub dev_server_id: Option<u64>,
     pub dev_channel_ids: Vec<u64>,
     pub debug_mode: bool,
+    /// `None` derives the season from the clock.
+    pub season: Option<i32>,
 }
 
 impl Config {
@@ -23,21 +25,16 @@ impl Config {
 
         let dev_server_id = env::var("DEV_SERVER_ID1").ok().and_then(|s| s.parse().ok());
 
-        let mut dev_channel_ids = Vec::new();
-        if let Ok(id_str) = env::var("DEV_CHANNEL_ID1") {
-            if let Ok(id) = id_str.parse::<u64>() {
-                dev_channel_ids.push(id);
-            }
-        }
-        if let Ok(id_str) = env::var("DEV_CHANNEL_ID2") {
-            if let Ok(id) = id_str.parse::<u64>() {
-                dev_channel_ids.push(id);
-            }
-        }
+        let dev_channel_ids = ["DEV_CHANNEL_ID1", "DEV_CHANNEL_ID2"]
+            .iter()
+            .filter_map(|key| env::var(key).ok()?.parse::<u64>().ok())
+            .collect();
+
+        let season = env::var("SEASON").ok().and_then(|s| s.parse().ok());
 
         let debug_mode = env::var("DEBUG_MODE")
-            .unwrap_or_else(|_| "false".to_string())
-            .parse::<bool>()
+            .ok()
+            .and_then(|s| s.parse().ok())
             .unwrap_or(false);
 
         Ok(Config {
@@ -47,6 +44,7 @@ impl Config {
             dev_server_id,
             dev_channel_ids,
             debug_mode,
+            season,
         })
     }
 }

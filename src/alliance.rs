@@ -1,96 +1,39 @@
-use model::prelude::Team;
+use model::prelude::{Alliance as Scores, Team};
 
-#[derive(Debug, Clone)]
-pub enum AllianceColor {
-    Red,
-    Blue,
-}
-
-impl AllianceColor {
-    pub fn as_str(&self) -> &str {
-        match self {
-            AllianceColor::Red => "Red",
-            AllianceColor::Blue => "Blue",
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct AllianceScore {
-    pub auto: f64,
-    pub teleop: f64,
-    pub endgame: f64,
-    pub penalties: f64,
-    pub total: f64,
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Alliance {
-    pub team1: Option<Team>,
-    pub team2: Option<Team>,
-    pub color: AllianceColor,
+    pub teams: [Option<Team>; 2],
 }
 
 impl Alliance {
-    pub fn new(team1: Option<Team>, team2: Option<Team>, color: AllianceColor) -> Self {
+    pub fn new(team1: Option<Team>, team2: Option<Team>) -> Self {
         Self {
-            team1,
-            team2,
-            color,
+            teams: [team1, team2],
         }
     }
 
-    pub fn team_names(&self) -> Vec<String> {
-        let mut names = Vec::new();
-        if let Some(team) = &self.team1 {
-            names.push(team.name.clone());
-        } else {
-            names.push(String::new());
-        }
-        if let Some(team) = &self.team2 {
-            names.push(team.name.clone());
-        } else {
-            names.push(String::new());
-        }
-        names
-    }
-
-    pub fn team_numbers(&self) -> Vec<u32> {
-        let mut numbers = Vec::new();
-        if let Some(team) = &self.team1 {
-            numbers.push(team.number);
-        }
-        if let Some(team) = &self.team2 {
-            numbers.push(team.number);
-        }
-        numbers
-    }
-
-    pub fn calculate_score(&self) -> AllianceScore {
-        let auto = self.team1.as_ref().map(|t| t.auto).unwrap_or(0.0)
-            + self.team2.as_ref().map(|t| t.auto).unwrap_or(0.0);
-
-        let teleop = self.team1.as_ref().map(|t| t.teleop).unwrap_or(0.0)
-            + self.team2.as_ref().map(|t| t.teleop).unwrap_or(0.0);
-
-        let endgame = self.team1.as_ref().map(|t| t.endgame).unwrap_or(0.0)
-            + self.team2.as_ref().map(|t| t.endgame).unwrap_or(0.0);
-
-        let penalties = self.team1.as_ref().map(|t| t.penalties).unwrap_or(0.0)
-            + self.team2.as_ref().map(|t| t.penalties).unwrap_or(0.0);
-
-        let total = auto + teleop + endgame;
-
-        AllianceScore {
-            auto,
-            teleop,
-            endgame,
-            penalties,
-            total,
-        }
+    pub fn team(&self, slot: usize) -> Option<&Team> {
+        self.teams.get(slot).and_then(Option::as_ref)
     }
 
     pub fn is_empty(&self) -> bool {
-        self.team1.is_none() && self.team2.is_none()
+        self.teams.iter().all(Option::is_none)
+    }
+}
+
+impl From<&Alliance> for Scores {
+    fn from(alliance: &Alliance) -> Self {
+        let sum = |pick: fn(&Team) -> f64| alliance.teams.iter().flatten().map(pick).sum();
+
+        Scores {
+            teams: [
+                alliance.team(0).map_or(0, |t| t.number),
+                alliance.team(1).map_or(0, |t| t.number),
+            ],
+            auto: sum(|t| t.auto),
+            teleop: sum(|t| t.teleop),
+            endgame: sum(|t| t.endgame),
+            penalties: sum(|t| t.penalties),
+        }
     }
 }

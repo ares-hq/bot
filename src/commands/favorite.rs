@@ -1,9 +1,10 @@
 use crate::bot_state::{Colors, error_embed, success_embed};
+use crate::commands::{option_str, respond};
 use crate::favorites::FavoritesManager;
 use anyhow::Result;
 use serenity::all::{
     CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
-    CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage,
+    CreateEmbed, CreateEmbedFooter,
 };
 
 pub async fn run(
@@ -11,109 +12,75 @@ pub async fn run(
     interaction: &CommandInteraction,
     favorites: &FavoritesManager,
 ) -> Result<()> {
-    let guild_id = match interaction.guild_id {
-        Some(id) => id,
-        None => {
-            let embed = error_embed("Guild Only", "This command can only be used in a server");
-            interaction
-                .create_response(
-                    &ctx.http,
-                    CreateInteractionResponse::Message(
-                        CreateInteractionResponseMessage::new().embed(embed),
-                    ),
-                )
-                .await?;
-            return Ok(());
+    let Some(guild_id) = interaction.guild_id else {
+        let embed = error_embed("Guild Only", "This command can only be used in a server.");
+        return respond::public(ctx, interaction, embed).await;
+    };
+
+    let Some(raw) = option_str(interaction, "team_number") else {
+        let embed = match favorites.list_favorites(guild_id).await {
+            Ok(teams) => favorites_embed(&teams),
+            Err(err) => {
+                tracing::error!(%guild_id, error = %err, "Could not list favorites");
+                let embed = error_embed(
+                    "Favorites Unavailable",
+                    "Could not read this server's favorites. Try again shortly.",
+                );
+                return respond::ephemeral(ctx, interaction, embed).await;
+            }
+        };
+        return respond::public(ctx, interaction, embed).await;
+    };
+
+    let Ok(team_number) = raw.parse::<u32>() else {
+        let embed = error_embed("Error", "Team number must be numerical.");
+        return respond::ephemeral(ctx, interaction, embed).await;
+    };
+
+    let embed = match favorites.toggle_favorite(guild_id, team_number).await {
+        Ok(true) => success_embed(
+            "Favorite Added",
+            &format!("Team {team_number} added to favorites ⭐"),
+        ),
+        Ok(false) => success_embed(
+            "Favorite Removed",
+            &format!("Team {team_number} removed from favorites"),
+        ),
+        Err(err) => {
+            tracing::error!(%guild_id, team_number, error = %err, "Could not save favorite");
+            let embed = error_embed(
+                "Favorite Not Saved",
+                "Could not reach the favorites store. Nothing was changed.",
+            );
+            return respond::ephemeral(ctx, interaction, embed).await;
         }
     };
 
-    let team_number_raw = interaction
-        .data
-        .options
-        .iter()
-        .find(|opt| opt.name == "team_number")
-        .and_then(|opt| opt.value.as_str());
+    respond::public(ctx, interaction, embed).await
+}
 
-    // Python behavior: no team_number means show favorites.
-    if team_number_raw.is_none() {
-        let favorite_teams = favorites.list_favorites(guild_id);
+fn favorites_embed(teams: &[u32]) -> CreateEmbed {
+    let embed = CreateEmbed::new()
+        .title("Favorite Teams")
+        .color(Colors::FAVORITE);
 
-        let embed = if favorite_teams.is_empty() {
-            CreateEmbed::new()
-                .title("Favorite Teams")
-                .color(Colors::FAVORITE)
-                .description("No favorite teams set.")
-                .footer(serenity::all::CreateEmbedFooter::new(
-                    "Run the command with a team number to add it to favorites.",
-                ))
-        } else {
-            let team_list = favorite_teams
-                .iter()
-                .map(|num| format!("Team {} ⭐", num))
-                .collect::<Vec<_>>()
-                .join("\n");
-
-            CreateEmbed::new()
-                .title("Favorite Teams")
-                .color(Colors::FAVORITE)
-                .description(team_list)
-                .footer(serenity::all::CreateEmbedFooter::new(
-                    "Re-run the command with a team number to remove it from favorites.",
-                ))
-        };
-
-        interaction
-            .create_response(
-                &ctx.http,
-                CreateInteractionResponse::Message(
-                    CreateInteractionResponseMessage::new().embed(embed),
-                ),
-            )
-            .await?;
-        return Ok(());
+    if teams.is_empty() {
+        return embed
+            .description("No favorite teams set.")
+            .footer(CreateEmbedFooter::new(
+                "Run the command with a team number to add it to favorites.",
+            ));
     }
 
-    let team_number = match team_number_raw.unwrap().parse::<u32>() {
-        Ok(v) => v,
-        Err(_) => {
-            let embed = error_embed("Error", "Team Number must be valid.");
-            interaction
-                .create_response(
-                    &ctx.http,
-                    CreateInteractionResponse::Message(
-                        CreateInteractionResponseMessage::new()
-                            .embed(embed)
-                            .ephemeral(true),
-                    ),
-                )
-                .await?;
-            return Ok(());
-        }
-    };
+    let listed = teams
+        .iter()
+        .map(|number| format!("Team {number} ⭐"))
+        .collect::<Vec<_>>()
+        .join("\n");
 
-    let added = favorites.toggle_favorite(guild_id, team_number);
-    let embed = if added {
-        success_embed(
-            "Favorite Added",
-            &format!("Team {} added to favorites ⭐", team_number),
-        )
-    } else {
-        success_embed(
-            "Favorite Removed",
-            &format!("Team {} removed from favorites", team_number),
-        )
-    };
-
-    interaction
-        .create_response(
-            &ctx.http,
-            CreateInteractionResponse::Message(
-                CreateInteractionResponseMessage::new().embed(embed),
-            ),
-        )
-        .await?;
-
-    Ok(())
+    embed.description(listed).footer(CreateEmbedFooter::new(
+        "Re-run the command with a team number to remove it from favorites.",
+    ))
 }
 
 pub fn register() -> CreateCommand {

@@ -1,100 +1,88 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Keeps the ARES Discord bot running and restarts it when `main` moves.
+#
+#   chmod +x ./monitor_and_run.sh
+#   nohup ./monitor_and_run.sh > monitor.log 2>&1 &
+#
+# Stop with: pkill -f 'release/bot'
 set -euo pipefail
 
-# Configuration
-readonly BOT_SCRIPT="ARES.py"
-readonly LOG_FILE="ARES.log"
-readonly VENV_DIR=".venv"
 readonly BRANCH="main"
 readonly CHECK_INTERVAL=60
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly LOG_FILE="bot.log"
 
-cd "$SCRIPT_DIR"
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
+
+# Honours a workspace target directory as well as a standalone checkout.
+binary_path() {
+    local dir
+    dir=$(cargo metadata --no-deps --format-version 1 \
+        | sed -n 's/.*"target_directory":"\([^"]*\)".*/\1/p')
+    echo "${dir:-target}/release/bot"
 }
 
-install_uv() {
-    if ! command -v uv &> /dev/null; then
-        log "Installing uv..."
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        export PATH="$HOME/.cargo/bin:$PATH"
-    fi
-}
-
-setup_environment() {
-    if [ ! -d "$VENV_DIR" ]; then
-        log "Creating virtual environment..."
-        uv venv "$VENV_DIR"
-    fi
-    
-    log "Installing dependencies..."
-    if [ -f "pyproject.toml" ]; then
-        uv sync
-    elif [ -f "requirements.txt" ]; then
-        uv pip install -r requirements.txt
-    fi
+build() {
+    log "Building..."
+    cargo build --release --bin bot
+    log "Build complete"
 }
 
 stop_bot() {
     local pids
-    pids=$(pgrep -f "python.*$BOT_SCRIPT" || true)
-    
-    if [ -n "$pids" ]; then
-        log "Stopping bot processes: $pids"
-        kill $pids 2>/dev/null || true
-        sleep 2
-        
-        # Force kill if still running
-        pids=$(pgrep -f "python.*$BOT_SCRIPT" || true)
-        if [ -n "$pids" ]; then
-            kill -9 $pids 2>/dev/null || true
-        fi
-    fi
+    pids=$(pgrep -f "release/bot$" || true)
+    [ -z "$pids" ] && return 0
+
+    log "Stopping bot: $pids"
+    # shellcheck disable=SC2086
+    kill $pids 2>/dev/null || true
+    for _ in {1..10}; do
+        pgrep -f "release/bot$" >/dev/null || return 0
+        sleep 1
+    done
+
+    log "Bot did not exit; forcing"
+    pkill -9 -f "release/bot$" 2>/dev/null || true
 }
 
 start_bot() {
     stop_bot
-    log "Starting bot..."
-    nohup "$VENV_DIR/bin/python" "$BOT_SCRIPT" > "$LOG_FILE" 2>&1 &
+    local binary
+    binary=$(binary_path)
+    log "Starting $binary"
+    nohup "$binary" >> "$LOG_FILE" 2>&1 &
     log "Bot started with PID $!"
 }
 
+# Prints "updated" when the branch moved, nothing when it did not.
 check_for_updates() {
-    if ! git fetch origin "$BRANCH" 2>&1 | grep -q "fatal"; then
-        local local_hash remote_hash
-        local_hash=$(git rev-parse HEAD)
-        remote_hash=$(git rev-parse "origin/$BRANCH")
-        
-        if [ "$local_hash" != "$remote_hash" ]; then
-            log "Update detected: $local_hash -> $remote_hash"
-            git reset --hard "origin/$BRANCH" || {
-                log "ERROR: Failed to update repository"
-                return 1
-            }
-            return 0
-        fi
-    else
-        log "WARNING: Git fetch failed"
-        return 1
-    fi
-    return 2
+    git fetch origin "$BRANCH" --quiet || { log "WARNING: git fetch failed"; return; }
+
+    local local_hash remote_hash
+    local_hash=$(git rev-parse HEAD)
+    remote_hash=$(git rev-parse "origin/$BRANCH")
+    [ "$local_hash" = "$remote_hash" ] && return
+
+    log "Update detected: $local_hash -> $remote_hash"
+    git reset --hard "origin/$BRANCH" --quiet || { log "ERROR: reset failed"; return; }
+    echo updated
 }
 
-# Initialize
-log "Initializing bot monitor..."
-install_uv
-setup_environment
+trap 'log "Shutting down"; stop_bot; exit 0' INT TERM
+
+log "Initialising bot monitor"
+build
 start_bot
 
-# Main loop
 while true; do
     sleep "$CHECK_INTERVAL"
-    
-    if check_for_updates; then
-        log "Updating dependencies..."
-        setup_environment
+
+    if [ -n "$(check_for_updates)" ]; then
+        build
+        start_bot
+    elif ! pgrep -f "release/bot$" >/dev/null; then
+        log "Bot is not running; restarting"
         start_bot
     fi
 done

@@ -5,23 +5,21 @@ mod config;
 mod favorites;
 mod image_generator;
 mod match_data;
-mod teams;
+mod team_store;
 
 use anyhow::Result;
-use serenity::all::{
-    Client, Context, CreateCommand, CreateInteractionResponse, CreateInteractionResponseMessage,
-    EventHandler, GatewayIntents, Interaction, Ready,
-};
+use serenity::all::{Client, Context, EventHandler, GatewayIntents, Interaction, Ready};
 use std::sync::Arc;
 use tracing::{error, info};
 
 use bot_state::error_embed;
+use commands::{Command, respond};
 use config::Config;
 use favorites::FavoritesManager;
-use teams::Teams;
+use team_store::TeamStore;
 
 struct Handler {
-    teams: Arc<Teams>,
+    teams: Arc<TeamStore>,
     favorites: Arc<FavoritesManager>,
     config: Arc<Config>,
 }
@@ -31,15 +29,8 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("{} is connected as {}", bot_state::VERSION, ready.user.name);
 
-        // Register slash commands
-        let commands = vec![
-            commands::team::register(),
-            commands::match_cmd::register(),
-            commands::favorite::register(),
-            commands::help::register(),
-        ];
+        let commands: Vec<_> = Command::ALL.into_iter().map(Command::register).collect();
 
-        // Register commands either globally or to dev server
         if self.config.debug_mode {
             if let Some(dev_server) = self.config.dev_server_id {
                 info!("Registering commands to development server: {}", dev_server);
@@ -57,7 +48,6 @@ impl EventHandler for Handler {
             }
         }
 
-        // Set activity
         ctx.set_activity(Some(serenity::all::ActivityData::playing(
             bot_state::PRESENCE,
         )));
@@ -67,7 +57,6 @@ impl EventHandler for Handler {
 
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::Command(command) = &interaction {
-            // Check debug mode channel filtering
             if self.config.debug_mode {
                 let channel_u64 = command.channel_id.get();
                 let allowed = self.config.dev_channel_ids.contains(&channel_u64);
@@ -77,75 +66,51 @@ impl EventHandler for Handler {
                         "Debug Mode",
                         "Bot is in debug mode. Commands are restricted to specific channels.",
                     );
-                    let _ = command
-                        .create_response(
-                            &ctx.http,
-                            CreateInteractionResponse::Message(
-                                CreateInteractionResponseMessage::new()
-                                    .embed(embed)
-                                    .ephemeral(true),
-                            ),
-                        )
-                        .await;
+                    let _ = respond::ephemeral(&ctx, command, embed).await;
                     return;
                 }
             }
 
-            let result = match command.data.name.as_str() {
-                "team" => commands::team::run(&ctx, command, &self.teams, &self.favorites).await,
-                "match" => commands::match_cmd::run(&ctx, command, &self.teams).await,
-                "favorite" => commands::favorite::run(&ctx, command, &self.favorites).await,
-                "help" => commands::help::run(&ctx, command).await,
-                _ => {
-                    let embed = error_embed("Unknown Command", "This command is not recognized.");
-                    let _ = command
-                        .create_response(
-                            &ctx.http,
-                            CreateInteractionResponse::Message(
-                                CreateInteractionResponseMessage::new()
-                                    .embed(embed)
-                                    .ephemeral(true),
-                            ),
-                        )
-                        .await;
-                    Ok(())
-                }
+            let Some(name) = Command::from_name(&command.data.name) else {
+                let embed = error_embed("Unknown Command", "This command is not recognized.");
+                let _ = respond::ephemeral(&ctx, command, embed).await;
+                return;
             };
 
-            if let Err(e) = result {
+            if let Err(e) = name.run(&ctx, command, &self.teams, &self.favorites).await {
                 error!("Error handling command '{}': {}", command.data.name, e);
             }
             return;
         }
 
-        if let Interaction::Component(component) = &interaction {
-            if let Err(e) = commands::help::handle_component(&ctx, component).await {
-                error!("Error handling component interaction: {}", e);
-            }
+        if let Interaction::Component(component) = &interaction
+            && let Err(e) = commands::help::handle_component(&ctx, component).await
+        {
+            error!("Error handling component interaction: {}", e);
         }
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();
 
     info!("Starting {} Bot {}", bot_state::NAME, bot_state::VERSION);
 
-    // Load configuration
     let config = Config::from_env()?;
     info!("Configuration loaded");
 
-    // Initialize services
-    let teams = Teams::new(config.supabase_url.clone(), config.supabase_key.clone());
-    let favorites = FavoritesManager::new();
+    let teams = TeamStore::new(
+        &config.supabase_url,
+        config.supabase_key.clone(),
+        config.season,
+    );
+    let favorites = FavoritesManager::new(&config.supabase_url, config.supabase_key.clone());
 
     info!("Services initialized");
 
-    // Set up Discord client
     let intents = GatewayIntents::GUILDS | GatewayIntents::DIRECT_MESSAGES;
 
     let handler = Handler {

@@ -1,6 +1,7 @@
 use crate::alliance::Alliance;
+use anyhow::{Context, Result, anyhow};
 use askama::Template;
-use model::prelude::Team;
+use model::prelude::{Alliance as Scores, Match as Scored, Team, Winner};
 use resvg::tiny_skia::{Pixmap, Transform};
 use resvg::usvg::{Options, Tree, fontdb};
 use std::sync::{Arc, LazyLock};
@@ -8,7 +9,6 @@ use std::sync::{Arc, LazyLock};
 const W: u32 = 1000;
 const H: u32 = 600;
 
-/// Fonts parsed once and shared across every render via a cheap `Arc` clone.
 static FONTS: LazyLock<Arc<fontdb::Database>> = LazyLock::new(|| {
     let mut db = fontdb::Database::new();
     for ttf in [
@@ -99,14 +99,13 @@ struct AllianceCard {
 pub struct ImageGenerator;
 
 impl ImageGenerator {
-    pub fn create_match_image(red: &Alliance, blue: &Alliance) -> Vec<u8> {
-        let r = red.calculate_score();
-        let b = blue.calculate_score();
-        // Real-match scoring: a team's fouls are awarded to the opponent.
-        let r_total = r.total + b.penalties;
-        let b_total = b.total + r.penalties;
-        let red_win = r_total > b_total;
-        let blue_win = b_total > r_total;
+    pub fn create_match_image(red: &Alliance, blue: &Alliance) -> Result<Vec<u8>> {
+        let (r, b): (Scores, Scores) = (red.into(), blue.into());
+        let scored = Scored::new(r.clone(), b.clone());
+        let (r_total, b_total) = scored.totals();
+        let winner = scored.winner();
+        let red_win = winner == Some(Winner::Red);
+        let blue_win = winner == Some(Winner::Blue);
 
         let scale = 360.0
             / [
@@ -122,7 +121,6 @@ impl ImageGenerator {
             .into_iter()
             .fold(1.0_f64, f64::max);
 
-        // Penalty bar sits on the beneficiary's side, colored by the causer.
         let rows = vec![
             bar_row("AUTO", r.auto, b.auto, RED, BLUE, 386.0, scale),
             bar_row("TELEOP", r.teleop, b.teleop, RED, BLUE, 432.0, scale),
@@ -155,13 +153,13 @@ impl ImageGenerator {
             blue_lines: vec![team_line(blue, 0, 196.0), team_line(blue, 1, 226.0)],
             rows,
         };
-        render(&card.render().expect("match card renders"))
+        render(&card.render().context("rendering match card template")?)
     }
 
-    pub fn create_alliance_image(alliance: &Alliance) -> Vec<u8> {
-        let s = alliance.calculate_score();
-        let t1 = alliance.team1.as_ref();
-        let t2 = alliance.team2.as_ref();
+    pub fn create_alliance_image(alliance: &Alliance) -> Result<Vec<u8>> {
+        let s = Scores::from(alliance);
+        let t1 = alliance.team(0);
+        let t2 = alliance.team(1);
         let opr = |team: Option<&Team>, pick: fn(&Team) -> f64| team.map(pick).unwrap_or(0.0);
 
         let rows = vec![
@@ -196,24 +194,23 @@ impl ImageGenerator {
             rows,
             auto: format!("{:.0}", s.auto),
             teleop: format!("{:.0}", s.teleop),
-            total: format!("{:.0}", s.total),
+            total: format!("{:.0}", s.points()),
         };
-        render(&card.render().expect("alliance card renders"))
+        render(&card.render().context("rendering alliance card template")?)
     }
 }
 
-fn render(svg: &str) -> Vec<u8> {
+fn render(svg: &str) -> Result<Vec<u8>> {
     let opt = Options {
         fontdb: FONTS.clone(),
         ..Default::default()
     };
-    let tree = Tree::from_str(svg, &opt).expect("card SVG is valid");
-    let mut pixmap = Pixmap::new(W, H).expect("nonzero canvas");
+    let tree = Tree::from_str(svg, &opt).context("parsing card SVG")?;
+    let mut pixmap = Pixmap::new(W, H).ok_or_else(|| anyhow!("cannot allocate {W}x{H} pixmap"))?;
     resvg::render(&tree, Transform::identity(), &mut pixmap.as_mut());
-    pixmap.encode_png().expect("PNG encode")
+    pixmap.encode_png().context("encoding card PNG")
 }
 
-/// A center-diverging bar: left value grows left of 500, right value grows right.
 fn bar_row(
     label: &'static str,
     left_val: f64,
@@ -270,19 +267,17 @@ fn team_header(alliance: &Alliance, slot: usize, x: f64) -> TeamHeader {
     TeamHeader { x, num, name }
 }
 
-fn team_at(alliance: &Alliance, slot: usize) -> Option<&Team> {
-    [alliance.team1.as_ref(), alliance.team2.as_ref()][slot]
-}
-
 fn slot_parts(alliance: &Alliance, slot: usize, max: usize) -> (String, String) {
-    match team_at(alliance, slot) {
-        Some(t) => (t.number.to_string(), trunc(&t.name, max)),
-        None => ("—".to_string(), "Empty".to_string()),
-    }
+    let name = alliance
+        .team(slot)
+        .map_or_else(|| "Empty".to_string(), |t| trunc(&t.name, max));
+    (slot_num(alliance, slot), name)
 }
 
 fn slot_num(alliance: &Alliance, slot: usize) -> String {
-    team_at(alliance, slot).map_or_else(|| "—".to_string(), |t| t.number.to_string())
+    alliance
+        .team(slot)
+        .map_or_else(|| "—".to_string(), |t| t.number.to_string())
 }
 
 fn trunc(s: &str, n: usize) -> String {
@@ -297,7 +292,7 @@ fn trunc(s: &str, n: usize) -> String {
 #[cfg(test)]
 mod smoke {
     use super::*;
-    use crate::alliance::{Alliance, AllianceColor};
+    use crate::alliance::Alliance;
     use model::prelude::Team;
 
     fn team(n: u32, name: &str, a: f64, t: f64, e: f64, p: f64) -> Team {
@@ -315,14 +310,12 @@ mod smoke {
         let red = Alliance::new(
             Some(team(12345, "Robo Raiders", 22.0, 44.0, 15.0, 5.0)),
             Some(team(6789, "Circuit Breakers", 23.0, 44.0, 15.0, 0.0)),
-            AllianceColor::Red,
         );
         let blue = Alliance::new(
             Some(team(4321, "Gear Grinders", 19.0, 48.0, 10.0, 8.0)),
             Some(team(9876, "Volt Vipers", 19.0, 47.0, 10.0, 7.0)),
-            AllianceColor::Blue,
         );
-        let png = ImageGenerator::create_match_image(&red, &blue);
+        let png = ImageGenerator::create_match_image(&red, &blue).unwrap();
         assert_eq!(&png[1..4], b"PNG");
         assert!(png.len() > 1000);
     }

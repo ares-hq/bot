@@ -1,127 +1,87 @@
 use crate::bot_state::{Colors, error_embed, warning_embed};
+use crate::commands::{option_str, respond};
 use crate::favorites::FavoritesManager;
-use crate::teams::Teams;
+use crate::team_store::TeamStore;
 use anyhow::Result;
 use serenity::all::{
-    CommandInteraction, Context, CreateCommand, CreateEmbed, CreateInteractionResponse,
-    CreateInteractionResponseMessage,
+    CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
+    CreateEmbed, CreateEmbedFooter,
 };
 
 pub async fn run(
     ctx: &Context,
     interaction: &CommandInteraction,
-    teams: &Teams,
+    store: &TeamStore,
     favorites: &FavoritesManager,
 ) -> Result<()> {
-    let team_number_raw = interaction
-        .data
-        .options
-        .iter()
-        .find(|opt| opt.name == "team_number")
-        .and_then(|opt| opt.value.as_str())
-        .ok_or_else(|| anyhow::anyhow!("Team number is required"))?;
+    let raw = option_str(interaction, "team_number")
+        .ok_or_else(|| anyhow::anyhow!("team_number is required"))?;
 
-    let team_number: u32 = match team_number_raw.parse() {
-        Ok(v) => v,
-        Err(_) => {
-            let embed = warning_embed("Warning", "Team number must be numerical.");
-            interaction
-                .create_response(
-                    &ctx.http,
-                    CreateInteractionResponse::Message(
-                        CreateInteractionResponseMessage::new()
-                            .embed(embed)
-                            .ephemeral(true),
-                    ),
-                )
-                .await?;
-            return Ok(());
+    let Ok(team_number) = raw.parse::<u32>() else {
+        let embed = warning_embed("Warning", "Team number must be numerical.");
+        return respond::ephemeral(ctx, interaction, embed).await;
+    };
+
+    respond::defer(ctx, interaction).await?;
+
+    let team = match store.team(team_number).await {
+        Ok(team) => team,
+        Err(err) => {
+            tracing::warn!(team_number, error = %err, "Team lookup failed");
+            let embed = error_embed(
+                "Team Not Found",
+                &format!("Could not find team {team_number} in this season's data."),
+            );
+            return respond::edit(ctx, interaction, embed).await;
         }
     };
 
-    // Acknowledge the interaction
-    interaction
-        .create_response(
-            &ctx.http,
-            CreateInteractionResponse::Defer(CreateInteractionResponseMessage::new()),
-        )
-        .await?;
+    let starred = match interaction.guild_id {
+        Some(guild_id) => favorites.is_favorite(guild_id, team_number).await,
+        None => false,
+    };
 
-    // Fetch team data
-    let team_result = teams.get_team(team_number).await;
-
-    match team_result {
-        Ok(team) => {
-            let is_favorite = if let Some(guild_id) = interaction.guild_id {
-                favorites.is_favorite(guild_id, team_number)
-            } else {
-                false
-            };
-
-            let star = if is_favorite { "⭐" } else { "" };
-            let title = format!("{} Team {} - {}", star, team.number, team.name);
-
-            let location = if team.location.is_empty() {
-                "Unknown"
-            } else {
-                &team.location
-            };
-            let sponsors = if team.sponsors.is_empty() {
-                "None listed"
-            } else {
-                &team.sponsors
-            };
-
-            let embed = CreateEmbed::new()
-                .title(title)
-                .color(Colors::FIRST_BLUE)
-                .field("Team Number", team.number.to_string(), true)
-                .field("Team Name", &team.name, true)
-                .field("Location", location, true)
-                .field("", "", false)
-                .field("Auto OPR", format!("{:.2}", team.auto), true)
-                .field("TeleOp OPR", format!("{:.2}", team.teleop), true)
-                .field("Endgame OPR", format!("{:.2}", team.endgame), true)
-                .field("Overall OPR", format!("{:.2}", team.overall), true)
-                .field("Penalties", format!("{:.2}", team.penalties), true)
-                .field("", "", true)
-                .field("Sponsors", sponsors, false)
-                .footer(serenity::all::CreateEmbedFooter::new(format!(
-                    "Rank: #{}",
-                    team.overall_rank.unwrap_or(0)
-                )));
-
-            interaction
-                .edit_response(
-                    &ctx.http,
-                    serenity::all::EditInteractionResponse::new().embed(embed),
-                )
-                .await?;
+    let or_unknown = |value: &str, fallback: &'static str| {
+        if value.is_empty() {
+            fallback.to_owned()
+        } else {
+            value.to_owned()
         }
-        Err(e) => {
-            let embed = error_embed(
-                "Team Not Found",
-                &format!("Could not find team {}: {}", team_number, e),
-            );
+    };
 
-            interaction
-                .edit_response(
-                    &ctx.http,
-                    serenity::all::EditInteractionResponse::new().embed(embed),
-                )
-                .await?;
-        }
-    }
+    let embed = CreateEmbed::new()
+        .title(format!(
+            "{}Team {} - {}",
+            if starred { "⭐ " } else { "" },
+            team.number,
+            team.name
+        ))
+        .color(Colors::FIRST_BLUE)
+        .field("Team Number", team.number.to_string(), true)
+        .field("Team Name", &team.name, true)
+        .field("Location", or_unknown(&team.location, "Unknown"), true)
+        .field("", "", false)
+        .field("Auto OPR", format!("{:.2}", team.auto), true)
+        .field("TeleOp OPR", format!("{:.2}", team.teleop), true)
+        .field("Endgame OPR", format!("{:.2}", team.endgame), true)
+        .field("Overall OPR", format!("{:.2}", team.overall), true)
+        .field("Penalties", format!("{:.2}", team.penalties), true)
+        .field("", "", true)
+        .field("Sponsors", or_unknown(&team.sponsors, "None listed"), false)
+        .footer(CreateEmbedFooter::new(match team.overall_rank {
+            Some(rank) => format!("Rank: #{rank}"),
+            None => "Unranked".to_owned(),
+        }));
 
-    Ok(())
+    respond::edit(ctx, interaction, embed).await
 }
 
 pub fn register() -> CreateCommand {
     CreateCommand::new("team")
         .description("Displays team information.")
         .add_option(
-            serenity::all::CreateCommandOption::new(
-                serenity::all::CommandOptionType::String,
+            CreateCommandOption::new(
+                CommandOptionType::String,
                 "team_number",
                 "Details about the team.",
             )

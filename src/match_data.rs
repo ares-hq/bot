@@ -1,6 +1,14 @@
-use crate::alliance::{Alliance, AllianceColor};
-use crate::teams::Teams;
+use crate::alliance::Alliance;
+use crate::team_store::TeamStore;
 use anyhow::Result;
+use model::prelude::{Match as Scored, Winner};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Outcome {
+    Incomplete,
+    Tie,
+    Won(Winner),
+}
 
 pub struct Match {
     pub red_alliance: Alliance,
@@ -11,61 +19,43 @@ impl Match {
     pub async fn create(
         red_teams: Vec<u32>,
         blue_teams: Option<Vec<u32>>,
-        teams: &Teams,
+        store: &TeamStore,
     ) -> Result<Self> {
-        let red_alliance = Self::form_alliance(red_teams, AllianceColor::Red, teams).await?;
+        let blue_numbers = blue_teams.unwrap_or_default();
+        let wanted: Vec<u32> = red_teams
+            .iter()
+            .chain(blue_numbers.iter())
+            .copied()
+            .collect();
 
-        let blue_alliance = if let Some(blue) = blue_teams {
-            Self::form_alliance(blue, AllianceColor::Blue, teams).await?
-        } else {
-            Alliance::new(None, None, AllianceColor::Blue)
+        let found = store.teams(&wanted).await?;
+        let pick = |number: u32| found.iter().find(|t| t.number == number).cloned();
+        let alliance = |numbers: &[u32]| match numbers {
+            [a, b] => Alliance::new(pick(*a), pick(*b)),
+            _ => Alliance::default(),
         };
 
         Ok(Self {
-            red_alliance,
-            blue_alliance,
+            red_alliance: alliance(&red_teams),
+            blue_alliance: alliance(&blue_numbers),
         })
     }
 
-    async fn form_alliance(
-        team_numbers: Vec<u32>,
-        color: AllianceColor,
-        teams: &Teams,
-    ) -> Result<Alliance> {
-        if team_numbers.len() != 2 {
-            return Ok(Alliance::new(None, None, color));
-        }
-
-        let team1 = teams.get_team(team_numbers[0]).await.ok();
-        let team2 = teams.get_team(team_numbers[1]).await.ok();
-
-        Ok(Alliance::new(team1, team2, color))
+    pub fn to_scored(&self) -> Scored {
+        Scored::new((&self.red_alliance).into(), (&self.blue_alliance).into())
     }
 
-    /// `(red, blue)` totals: own auto+teleop+endgame plus the opponent's fouls.
     pub fn totals(&self) -> (f64, f64) {
-        let r = self.red_alliance.calculate_score();
-        let b = self.blue_alliance.calculate_score();
-        (r.total + b.penalties, b.total + r.penalties)
+        self.to_scored().totals()
     }
 
-    pub fn winner(&self) -> &str {
+    pub fn outcome(&self) -> Outcome {
         if self.blue_alliance.is_empty() {
-            return "N/A";
+            return Outcome::Incomplete;
         }
-
-        let (red_score, blue_score) = self.totals();
-
-        if (red_score - blue_score).abs() < 0.01 {
-            "Tie"
-        } else if red_score > blue_score {
-            "Red"
-        } else {
-            "Blue"
+        match self.to_scored().winner() {
+            Some(winner) => Outcome::Won(winner),
+            None => Outcome::Tie,
         }
-    }
-
-    pub fn is_full_match(&self) -> bool {
-        !self.blue_alliance.is_empty()
     }
 }

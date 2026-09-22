@@ -1,157 +1,114 @@
 use crate::bot_state::{Colors, error_embed, warning_embed};
+use crate::commands::{option_str, respond};
 use crate::image_generator::ImageGenerator;
-use crate::match_data::Match;
-use crate::teams::Teams;
-use anyhow::Result;
+use crate::match_data::{Match, Outcome};
+use crate::team_store::TeamStore;
+use anyhow::{Context as _, Result};
+use model::prelude::Winner;
 use serenity::all::{
     CommandInteraction, CommandOptionType, Context, CreateAttachment, CreateCommand,
-    CreateCommandOption, CreateEmbed, CreateInteractionResponse, CreateInteractionResponseMessage,
+    CreateCommandOption, CreateEmbed,
 };
 
-pub async fn run(ctx: &Context, interaction: &CommandInteraction, teams: &Teams) -> Result<()> {
-    let red_alliance_raw = interaction
-        .data
-        .options
-        .iter()
-        .find(|opt| opt.name == "red_alliance")
-        .and_then(|opt| opt.value.as_str())
+const ALLIANCE_FORMAT: &str = "Each alliance must be exactly 2 team numbers separated by a space, \
+                               for example `12345 6789`.";
+
+fn parse_alliance(value: &str) -> Option<Vec<u32>> {
+    let teams: Vec<u32> = value
+        .split_whitespace()
+        .map(str::parse)
+        .collect::<Result<_, _>>()
+        .ok()?;
+    (teams.len() == 2).then_some(teams)
+}
+
+pub async fn run(ctx: &Context, interaction: &CommandInteraction, store: &TeamStore) -> Result<()> {
+    let red_raw = option_str(interaction, "red_alliance")
         .ok_or_else(|| anyhow::anyhow!("red_alliance is required"))?;
 
-    let blue_alliance_raw = interaction
-        .data
-        .options
-        .iter()
-        .find(|opt| opt.name == "blue_alliance")
-        .and_then(|opt| opt.value.as_str());
-
-    let parse_alliance = |value: &str| -> Option<Vec<u32>> {
-        let teams: Vec<u32> = value
-            .split_whitespace()
-            .filter_map(|s| s.parse::<u32>().ok())
-            .collect();
-        if teams.len() == 2 { Some(teams) } else { None }
+    let Some(red_teams) = parse_alliance(red_raw) else {
+        return respond::ephemeral(ctx, interaction, warning_embed("Warning", ALLIANCE_FORMAT))
+            .await;
     };
 
-    let red_teams = match parse_alliance(red_alliance_raw) {
-        Some(v) => v,
-        None => {
-            let embed = warning_embed(
-                "Warning",
-                "Each alliance must have exactly 2 team numbers separated by a space.",
-            );
-            interaction
-                .create_response(
-                    &ctx.http,
-                    CreateInteractionResponse::Message(
-                        CreateInteractionResponseMessage::new()
-                            .embed(embed)
-                            .ephemeral(true),
-                    ),
-                )
-                .await?;
-            return Ok(());
-        }
-    };
-
-    let blue_option = match blue_alliance_raw {
-        Some(raw) => match parse_alliance(raw) {
-            Some(v) => Some(v),
-            None => {
-                let embed = warning_embed(
-                    "Warning",
-                    "Each alliance must have exactly 2 team numbers separated by a space.",
-                );
-                interaction
-                    .create_response(
-                        &ctx.http,
-                        CreateInteractionResponse::Message(
-                            CreateInteractionResponseMessage::new()
-                                .embed(embed)
-                                .ephemeral(true),
-                        ),
-                    )
-                    .await?;
-                return Ok(());
-            }
-        },
+    let blue_teams = match option_str(interaction, "blue_alliance").map(parse_alliance) {
         None => None,
+        Some(Some(parsed)) => Some(parsed),
+        Some(None) => {
+            return respond::ephemeral(ctx, interaction, warning_embed("Warning", ALLIANCE_FORMAT))
+                .await;
+        }
     };
 
-    // Defer the response since this might take a while
-    interaction
-        .create_response(
-            &ctx.http,
-            CreateInteractionResponse::Defer(CreateInteractionResponseMessage::new()),
+    respond::defer(ctx, interaction).await?;
+
+    let match_data = match Match::create(red_teams, blue_teams, store).await {
+        Ok(match_data) => match_data,
+        Err(err) => {
+            tracing::error!(error = %err, "Could not assemble match");
+            let embed = error_embed("Match Error", "Could not look those teams up.");
+            return respond::edit(ctx, interaction, embed).await;
+        }
+    };
+
+    let (red, blue) = (
+        match_data.red_alliance.clone(),
+        match_data.blue_alliance.clone(),
+    );
+    let rendered = tokio::task::spawn_blocking(move || {
+        if blue.is_empty() {
+            ImageGenerator::create_alliance_image(&red)
+        } else {
+            ImageGenerator::create_match_image(&red, &blue)
+        }
+    })
+    .await
+    .context("card renderer panicked")?;
+
+    let bytes = match rendered {
+        Ok(bytes) => bytes,
+        Err(err) => {
+            tracing::error!(error = %err, "Could not render match card");
+            let embed = error_embed("Render Failed", "Could not draw the match card.");
+            return respond::edit(ctx, interaction, embed).await;
+        }
+    };
+
+    let outcome = match_data.outcome();
+    let (red_total, blue_total) = match_data.totals();
+
+    let embed = CreateEmbed::new()
+        .title("Match Scoreboard")
+        .color(match outcome {
+            Outcome::Won(Winner::Red) => Colors::CHALLENGE_RED,
+            Outcome::Won(Winner::Blue) => Colors::FIRST_BLUE,
+            _ => Colors::WHITE,
+        })
+        .description(match outcome {
+            Outcome::Won(Winner::Red) => "Red Alliance Wins!",
+            Outcome::Won(Winner::Blue) => "Blue Alliance Wins!",
+            Outcome::Tie => "Tie Match!",
+            Outcome::Incomplete => "Match Incomplete",
+        })
+        .field(
+            "Red Alliance",
+            format!("Total: {red_total:.0} points"),
+            true,
         )
-        .await?;
+        .field(
+            "Blue Alliance",
+            format!("Total: {blue_total:.0} points"),
+            true,
+        )
+        .image("attachment://match.png");
 
-    // Create match data
-    let match_result = Match::create(red_teams, blue_option, teams).await;
-
-    match match_result {
-        Ok(match_data) => {
-            // Generate match image (PNG bytes)
-            let bytes = if match_data.blue_alliance.is_empty() {
-                ImageGenerator::create_alliance_image(&match_data.red_alliance)
-            } else {
-                ImageGenerator::create_match_image(
-                    &match_data.red_alliance,
-                    &match_data.blue_alliance,
-                )
-            };
-
-            let winner_text = match match_data.winner() {
-                "Red" => "Red Alliance Wins!",
-                "Blue" => "Blue Alliance Wins!",
-                "Tie" => "Tie Match!",
-                _ => "Match Incomplete",
-            };
-
-            let (red_total, blue_total) = match_data.totals();
-
-            let embed = CreateEmbed::new()
-                .title("Match Scoreboard")
-                .color(match match_data.winner() {
-                    "Red" => Colors::CHALLENGE_RED,
-                    "Blue" => Colors::FIRST_BLUE,
-                    _ => Colors::WHITE,
-                })
-                .description(winner_text)
-                .field(
-                    "Red Alliance",
-                    format!("Total: {red_total:.0} points"),
-                    true,
-                )
-                .field(
-                    "Blue Alliance",
-                    format!("Total: {blue_total:.0} points"),
-                    true,
-                )
-                .image("attachment://match.png");
-
-            let attachment = CreateAttachment::bytes(bytes, "match.png");
-
-            interaction
-                .edit_response(
-                    &ctx.http,
-                    serenity::all::EditInteractionResponse::new()
-                        .embed(embed)
-                        .new_attachment(attachment),
-                )
-                .await?;
-        }
-        Err(e) => {
-            let embed = error_embed("Match Error", &format!("Failed to create match: {}", e));
-            interaction
-                .edit_response(
-                    &ctx.http,
-                    serenity::all::EditInteractionResponse::new().embed(embed),
-                )
-                .await?;
-        }
-    }
-
-    Ok(())
+    respond::edit_with_attachment(
+        ctx,
+        interaction,
+        embed,
+        CreateAttachment::bytes(bytes, "match.png"),
+    )
+    .await
 }
 
 pub fn register() -> CreateCommand {
@@ -173,4 +130,28 @@ pub fn register() -> CreateCommand {
             )
             .required(false),
         )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_pair_of_numbers_parses() {
+        assert_eq!(parse_alliance("12345 6789"), Some(vec![12345, 6789]));
+        assert_eq!(parse_alliance("  12345   6789  "), Some(vec![12345, 6789]));
+    }
+
+    #[test]
+    fn the_wrong_count_is_rejected() {
+        assert_eq!(parse_alliance("12345"), None);
+        assert_eq!(parse_alliance("1 2 3"), None);
+        assert_eq!(parse_alliance(""), None);
+    }
+
+    #[test]
+    fn a_stray_word_is_rejected_rather_than_skipped() {
+        assert_eq!(parse_alliance("12345 oops 6789"), None);
+        assert_eq!(parse_alliance("12345 -1"), None);
+    }
 }
