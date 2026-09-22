@@ -118,27 +118,14 @@ cargo run --release --bin bot
 
 ## Deployment
 
-Fonts and templates are compiled into the binary and TLS roots are bundled, so the image is
-the binary on `scratch` — nothing else in it.
+Fonts, templates and TLS roots are compiled into the binary, so a deploy is one static
+file. CI builds it; the server runs it under systemd with `Restart=always` and picks up
+new releases on an hourly timer. Setup in [`deploy/README.md`](../deploy/README.md).
 
 ```bash
-docker compose up -d bot
-docker compose logs -f bot
+systemctl status ares-bot.service
+journalctl -u ares-bot.service -f
 ```
-
-`restart: unless-stopped` brings the bot back after a crash and after a daemon restart,
-using docker's own backoff. Full instructions in [`deploy/README.md`](../deploy/README.md).
-
-### Without a container runtime
-
-```bash
-chmod +x ./monitor_and_run.sh
-nohup ./monitor_and_run.sh > monitor.log 2>&1 &
-```
-
-Builds, starts the bot, then checks `main` every minute — rebuilding and restarting when it
-moves, and restarting the bot if it died. This needs the Rust toolchain on the host and
-self-updates with `git reset --hard`, so prefer the image above where you have a choice.
 
 ## Version history
 
