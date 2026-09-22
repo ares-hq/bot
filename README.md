@@ -1,4 +1,5 @@
-## **ARES BOT**
+# ARES Bot
+
 ```text
       ___           ___           ___           ___                                  ___                   
      /\  \         /\  \         /\__\         /\__\                  _____         /\  \                  
@@ -13,154 +14,138 @@
      \/__/         \/__/         \/__/         \/__/                  \/__/         \/__/           \/__/  
 ```
 
-# 🔁 Version History
+FTC team statistics and match simulation as a Discord bot. Reads the `season_<year>` table
+that the [pipeline](https://github.com/ares-hq/db) writes; the two agree on table names
+through [`model::tables`](https://github.com/ares-hq/model).
 
----
+## Commands
 
-## 🚀 v2.0.0 — Major Update
+### `/team <team_number>`
 
-- ✅ **Bot is Now Verified!**
-- ✅ **Supports Slash `/` Commands!**
-- 🔁 Migrated to **FIRST Official API**
-- ⚙️ Custom **Offensive Power Rating (OPR)** Calculator
-- 🧠 **Updated Commands**: `/team`, `/match`, `/help`
-- ⭐ **New Command**: `/favorite`
+One team's season card: OPR by phase, overall rank, location and sponsors. A team favourited
+in this server is marked with a star.
 
-### `/team`
+### `/match <red_alliance> [blue_alliance]`
 
-```js
-/team <number>
+Simulates a matchup and renders a scorecard. Each alliance is **two team numbers separated by
+a space** — `/match "12345 6789" "4321 9876"`. Omit the blue alliance to score the red one on
+its own, which renders an alliance card instead.
 
-// Returns:
-{
-  "Team Number": "...",
-  "Team Name": "...",
-  "Team Location": "...",
-  "Team Sponsors": "...",
-  "World Autonomous OPR": "...",
-  "World TeleOp OPR": "...",
-  "World End Game OPR": "...",
-  "World Total OPR": "..."
-}
-```
+Totals follow the real scoreboard: each alliance's auto, teleop and endgame, plus the fouls
+its opponent committed.
 
----
+### `/favorite [team_number]`
 
-### `/match`
-
-#### 2-Team Match:
-```js
-/match <team-number-1> <team-number-2>
-
-// Returns:
-{
-  "Team 1": "...",
-  "Team 2": "...",
-  "Alliance Autonomous OPR": "...",
-  "Alliance TeleOp OPR": "...",
-  "Alliance End Game Score": "...",
-  "Alliance Total Score": "..."
-}
-```
-
-#### 4-Team Match:
-```js
-/match <team-1> <team-2> <team-3> <team-4>
-
-// Returns:
-{
-  // Red Alliance
-  "Team 1": "...",
-  "Team 2": "...",
-  "Red Auto": "...",
-  "Red TeleOp": "...",
-  "Red End Game": "...",
-  "Red Total": "...",
-
-  // Blue Alliance
-  "Team 3": "...",
-  "Team 4": "...",
-  "Blue Auto": "...",
-  "Blue TeleOp": "...",
-  "Blue End Game": "...",
-  "Blue Total": "..."
-}
-```
-
----
+With a team number, toggles it — the first call adds, the next removes. With no argument,
+lists the server's favourites. Favourites are per-server, shared by everyone in it, and
+persist across restarts.
 
 ### `/help`
 
-```js
-/help
+Three pages of command reference and a note on how to read OPR.
 
-// Returns:
-{
-  "Bot Information": "...",
-  "Version": "2.0.0",
-  "Developers": "...",
-  "Commands": ["team", "match", "favorite"]
-}
-```
+## Setup
 
----
+### 1. Clone
 
-### `/favorite`
+Inside the monorepo the crate is a workspace member:
 
-```js
-/favorite
-
-// Returns:
-{
-  "Effect": "Changes bot nickname in server to: Team #### Bot"
-}
-```
-
----
-
-## 📦 v1.5.0
-
-- ➕ Added Match Simulation Based on Team World OPR
-- ➕ Merges Lookup Stats into Alliance Format
-
-Example:
 ```bash
-match <team-number-1> <team-number-2>
-# Returns: plain-text match summary
+git clone --recurse-submodules https://github.com/ares-hq/ares.git
+cd ares
 ```
 
----
+Standalone also works — `model` then resolves from its published branch:
 
-## 🛠 v1.0.0 — Initial Release
-
-- ✅ Implemented FTCScout API
-- ✅ Added Team Command (TeleOp, Auto, Endgame, Location, Sponsors)
-- ✅ Added Help Command
-
-Example:
 ```bash
-help
-# Returns: plain-text command list
+git clone https://github.com/ares-hq/bot.git && cd bot
 ```
 
----
+### 2. Create the favourites table
 
-## 🧠 Helpful Notes
+Once per Supabase project:
 
-### Kill a Running Python Script
+```sql
+create table favorites (
+  guild_id    text    not null,
+  team_number integer not null,
+  primary key (guild_id, team_number)
+);
+```
+
+`guild_id` is text because Discord snowflakes do not round-trip through JSON integers.
+
+### 3. Configure
+
+Create `.env` (the monorepo keeps one at its root, shared with the pipeline):
+
+```env
+DISCORD_TOKEN=your-bot-token
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-anon-key
+
+# Optional
+SEASON=2025            # pin the season table; defaults to the current season
+DEBUG_MODE=false       # register to one guild and refuse other channels
+DEV_SERVER_ID1=...     # guild for debug-mode command registration
+DEV_CHANNEL_ID1=...    # channels debug mode will answer in
+DEV_CHANNEL_ID2=...
+```
+
+`SEASON` exists so the bot and the pipeline can be pinned to the same year. Left unset, both
+derive it from the clock, rolling over in August.
+
+Debug mode registers commands to `DEV_SERVER_ID1` — which propagates instantly, unlike the
+global registration used in production — and declines to answer outside the listed channels.
+
+### 4. Run
+
 ```bash
-ps -ef | grep python3
-kill <process_id>
+cargo run --release --bin bot
 ```
 
-### Run the App in Background
+## Design notes
+
+- **Team reads are cached for 60 seconds.** The pipeline rewrites the season table every few
+  minutes, so anything fresher than that is reused. A full `/match` is a single
+  `teamNumber=in.(…)` query, not one request per team.
+- **Cards are SVG.** [askama](https://github.com/djc/askama) templates in `templates/` are
+  rendered by [resvg](https://github.com/linebender/resvg) into PNG, on a blocking thread so
+  rasterisation never stalls the gateway. Fonts are embedded with `include_bytes!` and parsed
+  once.
+- **Commands are one list.** `commands::Command` drives both registration and dispatch, so a
+  new command cannot be registered without also being handled.
+
+## Deployment
+
+Fonts, templates and TLS roots are compiled into the binary, so a deploy is one static
+file. CI builds it; the server runs it under systemd with `Restart=always` and picks up
+new releases on an hourly timer. Setup in [`deploy/README.md`](../deploy/README.md).
+
 ```bash
-chmod +x ./monitor_and_run.sh
-nohup ./monitor_and_run.sh > monitor.log 2>&1 &
+systemctl status ares-bot.service
+journalctl -u ares-bot.service -f
 ```
 
-### View Live Logs
-```bash
-tail -f ftcscout.log
-tail -f monitor.log
-```
+## Version history
+
+### v3.0.0
+
+- Rewritten in Rust (was Python)
+- Server favourites persist in Supabase instead of vanishing on restart
+- Match and alliance cards rendered from SVG templates
+- Reads the shared `season_<year>` tables through the `model` crate
+
+### v2.0.0
+
+- Bot verified; migrated to slash commands
+- Moved to the official FIRST API with a custom OPR solver
+- Added `/favorite`
+
+### v1.5.0
+
+- Match simulation from team OPR
+
+### v1.0.0
+
+- Initial release on the FTCScout API: team lookup and help

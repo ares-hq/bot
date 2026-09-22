@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600" font-family="Rajdhani" font-weight="600">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1B1E24"/><stop offset="1" stop-color="#141519"/></linearGradient>
+<linearGradient id="redfill" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FF4B55" stop-opacity=".55"/><stop offset="1" stop-color="#FF4B55"/></linearGradient>
+<linearGradient id="bluefill" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3D8BFF"/><stop offset="1" stop-color="#3D8BFF" stop-opacity=".55"/></linearGradient>
+</defs>
+<rect x="0" y="0" width="1000" height="600" fill="url(#bg)"/>
+<rect x="1" y="1" width="998" height="598" rx="15" fill="none" stroke="#2A2E36"/>
+<text x="500" y="46" text-anchor="middle" font-weight="700" font-size="26" letter-spacing="4" fill="#EDEFF2">SIMULATED MATCH</text>
+<text x="500" y="74" text-anchor="middle" font-family="Roboto" font-weight="400" font-size="15" fill="#8A8F98">{{ r0 }} &amp; {{ r1 }}   vs   {{ b0 }} &amp; {{ b1 }}</text>
+<line x1="60" y1="92" x2="940" y2="92" stroke="#282C34"/>
+{% if red_win %}<rect x="26" y="112" width="452" height="196" rx="14" fill="#FF4B55" opacity=".10"/>{% endif %}
+<rect x="32" y="118" width="440" height="184" rx="12" fill="#1E2127" stroke="{{ red_stroke }}" stroke-width="1.5"/>
+<text x="60" y="150" font-size="15" letter-spacing="2.5" fill="#FF4B55">RED ALLIANCE</text>
+{% if red_win %}<rect x="360" y="130" width="86" height="24" rx="12" fill="#FF4B55"/><text x="403" y="147" text-anchor="middle" font-weight="700" font-size="13" letter-spacing="1.5" fill="#141519">WINNER</text>{% endif %}
+{% for l in red_lines %}<text x="60" y="{{ l.y }}" font-family="Roboto" font-weight="400" font-size="18"><tspan font-family="Rajdhani" font-weight="600" fill="#C9CCD2">{{ l.num }}</tspan><tspan fill="#EDEFF2"> {{ l.name }}</tspan></text>
+{% endfor %}<text x="452" y="180" text-anchor="end" font-weight="500" font-size="13" letter-spacing="2" fill="#8A8F98">TOTAL</text>
+<text x="452" y="262" text-anchor="end" font-weight="700" font-size="76" fill="{{ red_total_col }}">{{ r_total }}</text>
+<circle cx="500" cy="210" r="24" fill="#141519" stroke="#2E333C" stroke-width="1.5"/>
+<text x="500" y="218" text-anchor="middle" font-weight="700" font-size="19" fill="#8A8F98">VS</text>
+{% if blue_win %}<rect x="522" y="112" width="452" height="196" rx="14" fill="#3D8BFF" opacity=".10"/>{% endif %}
+<rect x="528" y="118" width="440" height="184" rx="12" fill="#1E2127" stroke="{{ blue_stroke }}" stroke-width="1.5"/>
+<text x="940" y="150" text-anchor="end" font-size="15" letter-spacing="2.5" fill="#3D8BFF">BLUE ALLIANCE</text>
+{% if blue_win %}<rect x="554" y="130" width="86" height="24" rx="12" fill="#3D8BFF"/><text x="597" y="147" text-anchor="middle" font-weight="700" font-size="13" letter-spacing="1.5" fill="#141519">WINNER</text>{% endif %}
+{% for l in blue_lines %}<text x="940" y="{{ l.y }}" text-anchor="end" font-family="Roboto" font-weight="400" font-size="18"><tspan fill="#EDEFF2">{{ l.name }} </tspan><tspan font-family="Rajdhani" font-weight="600" fill="#C9CCD2">{{ l.num }}</tspan></text>
+{% endfor %}<text x="548" y="180" font-weight="500" font-size="13" letter-spacing="2" fill="#8A8F98">TOTAL</text>
+<text x="548" y="262" font-weight="700" font-size="76" fill="{{ blue_total_col }}">{{ b_total }}</text>
+<text x="500" y="344" text-anchor="middle" font-size="13" letter-spacing="3" fill="#8A8F98">SCORE BREAKDOWN</text>
+{% for row in rows %}<g font-weight="700">
+<text x="500" y="{{ row.ly }}" text-anchor="middle" font-weight="600" font-size="13" letter-spacing="2" fill="#B4B8C0">{{ row.label }}</text>
+<rect x="{{ row.rx }}" y="{{ row.y }}" width="{{ row.rw }}" height="12" rx="6" fill="{{ row.red_fill }}"/>
+<rect x="500" y="{{ row.y }}" width="{{ row.bw }}" height="12" rx="6" fill="{{ row.blue_fill }}"/>
+<text x="{{ row.rtx }}" y="{{ row.vy }}" text-anchor="end" font-size="18" fill="{{ row.red_color }}">{{ row.red_val }}</text>
+<text x="{{ row.btx }}" y="{{ row.vy }}" font-size="18" fill="{{ row.blue_color }}">{{ row.blue_val }}</text>
+</g>
+{% endfor %}<line x1="500" y1="360" x2="500" y2="546" stroke="#2A2E36"/>
+<line x1="60" y1="566" x2="940" y2="566" stroke="#282C34"/>
+<text x="60" y="588" font-weight="700" font-size="15" letter-spacing="3" fill="#C9CCD2">ARES</text>
+<text x="940" y="588" text-anchor="end" font-family="Roboto" font-weight="400" font-size="12.5" fill="#6E7480">Estimated from OPR</text>
+</svg>
