@@ -74,18 +74,20 @@ impl TeamStore {
         Ok(found)
     }
 
-    pub async fn team(&self, team_number: u32) -> Result<Team> {
+    /// `None` when the team is not listed this season.
+    pub async fn team(&self, team_number: u32) -> Result<Option<Team>> {
         if let Some(team) = self.cached(team_number) {
-            return Ok(team);
+            return Ok(Some(team));
         }
 
         let team = self
             .client
             .team(&self.table, team_number)
             .await
-            .context("failed to read team")?
-            .context("team not found")?;
-        self.store(std::slice::from_ref(&team));
+            .context("failed to read team")?;
+        if let Some(team) = &team {
+            self.store(std::slice::from_ref(team));
+        }
         Ok(team)
     }
 }

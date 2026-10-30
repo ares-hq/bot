@@ -15,12 +15,19 @@ pub async fn team(
     let services = ctx.data();
 
     let team = match services.teams.team(team_number).await {
-        Ok(team) => team,
-        Err(err) => {
-            tracing::warn!(team_number, error = %err, "Team lookup failed");
+        Ok(Some(team)) => team,
+        Ok(None) => {
             let embed = error_embed(
                 "Team Not Found",
                 &format!("Couldn't find team {team_number} this season."),
+            );
+            return respond::public(ctx, embed).await;
+        }
+        Err(err) => {
+            tracing::warn!(team_number, error = %err, "Team lookup failed");
+            let embed = error_embed(
+                "Teams Unavailable",
+                "Couldn't look that team up right now. Please try again in a moment.",
             );
             return respond::public(ctx, embed).await;
         }
