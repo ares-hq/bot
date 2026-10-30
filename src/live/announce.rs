@@ -23,6 +23,7 @@ impl Card {
     pub async fn render(
         shared: &Shared,
         m: &MatchInfo,
+        rescored: bool,
         event: &str,
         code: &EventCode,
     ) -> Result<Self> {
@@ -63,7 +64,7 @@ impl Card {
         };
 
         Ok(Self {
-            embed: embed(&actual, predicted.as_ref(), &title, event, code),
+            embed: embed(&actual, predicted.as_ref(), &title, rescored, event, code),
             png,
         })
     }
@@ -96,6 +97,7 @@ fn embed(
     actual: &Scored,
     predicted: Option<&Scored>,
     title: &str,
+    rescored: bool,
     event: &str,
     code: &EventCode,
 ) -> CreateEmbed {
@@ -107,7 +109,11 @@ fn embed(
     };
 
     let embed = CreateEmbed::new()
-        .title(format!("{event} · {title}"))
+        .title(if rescored {
+            format!("{event} · {title} · Score updated")
+        } else {
+            format!("{event} · {title}")
+        })
         .description(format!("**{verdict}**  {red:.0} – {blue:.0}"))
         .color(color)
         .image(format!("attachment://{FILE_NAME}"))

@@ -40,7 +40,11 @@ impl FavoritesManager {
 
         let rows: Vec<FavoriteRow> = self
             .client
-            .select(tables::FAVORITES, &[("guild_id", format!("eq.{guild_id}"))])
+            .select_all(
+                tables::FAVORITES,
+                &[("guild_id", format!("eq.{guild_id}"))],
+                "team_number",
+            )
             .await?;
         let loaded: GuildFavorites = rows
             .into_iter()
@@ -146,7 +150,11 @@ impl FavoritesManager {
     pub async fn announced(&self) -> Result<Vec<(GuildId, u32, ChannelId)>> {
         let rows: Vec<FavoriteRow> = self
             .client
-            .select(tables::FAVORITES, &[("channel_id", "not.is.null".into())])
+            .select_all(
+                tables::FAVORITES,
+                &[("channel_id", "not.is.null".into())],
+                "guild_id,team_number",
+            )
             .await?;
         Ok(rows
             .into_iter()

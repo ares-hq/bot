@@ -45,7 +45,7 @@ impl Subscriptions {
         query.extend(filters.iter().cloned());
         let rows: Vec<SubscriptionRow> = self
             .client
-            .select(tables::EVENT_SUBSCRIPTIONS, &query)
+            .select_all(tables::EVENT_SUBSCRIPTIONS, &query, "guild_id,event_code")
             .await?;
         Ok(rows
             .into_iter()

@@ -7,8 +7,7 @@ mod timers;
 use anyhow::Result;
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeDelta, Utc};
 use model::first::{
-    ApiClient, ApiParams, EventCode, EventSummary, EventsResponse, MatchInfo, ScheduleResponse,
-    alliance_teams,
+    ApiClient, ApiParams, EventCode, EventSummary, EventsResponse, ScheduleResponse, alliance_teams,
 };
 use model::prelude::Supabase;
 use serenity::all::{ChannelId, GuildId, Http};
@@ -24,7 +23,7 @@ use crate::services::Services;
 use crate::subscriptions::Subscriptions;
 use crate::team_store::TeamStore;
 use announce::Card;
-use feed::{Feed, Polled};
+use feed::{Feed, Fresh, Polled};
 use routes::Routes;
 use schedule::{EventWindow, Phase};
 use timers::Timers;
@@ -483,14 +482,14 @@ impl Live {
     }
 
     /// Posts in result order, one card render per match.
-    fn announce(&mut self, code: &EventCode, matches: Vec<MatchInfo>) {
+    fn announce(&mut self, code: &EventCode, matches: Vec<Fresh>) {
         if let Some(tracked) = self.tracked.get_mut(code) {
             tracked.last_result = Some(Utc::now());
         }
-        let posts: Vec<(BTreeSet<ChannelId>, MatchInfo)> = matches
+        let posts: Vec<(BTreeSet<ChannelId>, Fresh)> = matches
             .into_iter()
             .map(|m| {
-                let (red, blue) = alliance_teams(&m.teams);
+                let (red, blue) = alliance_teams(&m.info.teams);
                 (self.routes.channels(code, red.into_iter().chain(blue)), m)
             })
             .filter(|(channels, _)| !channels.is_empty())
@@ -507,7 +506,7 @@ impl Live {
         self.tasks.spawn(async move {
             let mut gone = BTreeSet::new();
             for (channels, m) in posts {
-                match Card::render(&shared, &m, &name, &code).await {
+                match Card::render(&shared, &m.info, m.rescored, &name, &code).await {
                     Ok(card) => gone.extend(card.post(&shared.http, &channels).await),
                     Err(err) => {
                         tracing::error!(event = %code, error = %err, "Could not render match card")
