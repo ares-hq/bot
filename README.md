@@ -20,23 +20,17 @@ FTC team stats, match predictions and live match results, right in your Discord 
 
 ### `/team <team_number>`
 
-One team's season card: OPR by phase, overall rank, location and sponsors. A team favourited
-in this server is marked with a star.
+One team's season card: OPR by phase, overall rank, location and sponsors. A team favourited in this server is marked with a star.
 
 ### `/match <red_alliance> [blue_alliance]`
 
-Simulates a matchup and renders a scorecard. Each alliance is **two team numbers separated by
-a space** — `/match "14584 6789" "4321 9876"`. Omit the blue alliance to score the red one on
-its own, which renders an alliance card instead.
+Simulates a matchup and renders a scorecard. Each alliance is **two team numbers separated by a space** — `/match "14584 6789" "4321 9876"`. Omit the blue alliance to score the red one on its own, which renders an alliance card instead.
 
-Totals follow the real scoreboard: each alliance's auto, teleop and endgame, plus the fouls
-its opponent committed.
+Totals follow the real scoreboard: each alliance's auto, teleop and endgame, plus the fouls its opponent committed.
 
 ### `/favorite [team_number]`
 
-With a team number, favourites it and posts a result card in that channel for every match the
-team plays. Run it in another channel to move its cards there. With no argument, lists the
-server's favourites and where each one posts.
+With a team number, favourites it and posts a result card in that channel for every match the team plays. Run it in another channel to move its cards there. With no argument, lists the server's favourites and where each one posts.
 
 ### `/unfavorite <team_number>`
 
@@ -44,16 +38,13 @@ Removes a favourite from any channel, suggesting the server's favourites as you 
 
 ### `/subscribe [event_code]`
 
-Posts a result card in that channel for every match at the event. Run it in another channel to
-move it. With no argument, lists the server's subscriptions. A subscription is dropped once
-its event is over.
+Posts a result card in that channel for every match at the event. Run it in another channel to move it. With no argument, lists the server's subscriptions. A subscription is dropped once its event is over.
 
 ### `/unsubscribe <event_code>`
 
 Stops an event from any channel, suggesting the server's events as you type.
 
-Changing favourites or subscriptions needs **Manage Channels**, and the bot must be able to
-send messages, embed links and attach files in the channel.
+Changing favourites or subscriptions needs **Manage Channels**, and the bot must be able to send messages, embed links and attach files in the channel.
 
 ### `/help`
 
