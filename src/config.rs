@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
-use chrono::{Datelike, Utc};
+use chrono::{DateTime, Datelike, NaiveDate, Utc};
 use model::prelude::current_season;
+use model::season::ROLLOVER_MONTH;
 use serenity::all::{ChannelId, GuildId};
 use std::env;
 
@@ -65,5 +66,43 @@ impl Config {
             let now = Utc::now();
             current_season(now.year(), now.month())
         })
+    }
+}
+
+/// When the season after `now` starts, UTC midnight on the first of the rollover month.
+pub fn next_rollover(now: DateTime<Utc>) -> DateTime<Utc> {
+    let year = if now.month() < ROLLOVER_MONTH {
+        now.year()
+    } else {
+        now.year() + 1
+    };
+    NaiveDate::from_ymd_opt(year, ROLLOVER_MONTH, 1)
+        .and_then(|day| day.and_hms_opt(0, 0, 0))
+        .expect("the first of a month at midnight exists")
+        .and_utc()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn utc(s: &str) -> DateTime<Utc> {
+        s.parse().unwrap()
+    }
+
+    #[test]
+    fn the_next_rollover_is_the_coming_august() {
+        assert_eq!(
+            next_rollover(utc("2026-10-30T12:00:00Z")),
+            utc("2027-08-01T00:00:00Z")
+        );
+        assert_eq!(
+            next_rollover(utc("2027-07-31T23:59:59Z")),
+            utc("2027-08-01T00:00:00Z")
+        );
+        assert_eq!(
+            next_rollover(utc("2027-08-01T00:00:00Z")),
+            utc("2028-08-01T00:00:00Z")
+        );
     }
 }

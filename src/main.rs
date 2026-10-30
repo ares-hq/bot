@@ -12,10 +12,12 @@ mod subscriptions;
 mod team_store;
 
 use anyhow::Result;
+use chrono::Utc;
 use serenity::all::{
-    ActivityData, ClientBuilder, Command, FullEvent, GatewayIntents, Interaction,
+    ActivityData, ClientBuilder, Command, FullEvent, GatewayIntents, Interaction, ShardManager,
 };
 use std::sync::Arc;
+use tokio::signal::unix::{SignalKind, signal};
 use tracing::{error, info, warn};
 use tracing_subscriber::EnvFilter;
 
@@ -116,8 +118,14 @@ async fn main() -> Result<()> {
         info!("Live match cards enabled for season {season}");
     }
 
+    tokio::spawn(shut_down_on_signal(
+        client.shard_manager.clone(),
+        config.season.is_none(),
+    ));
+
     info!("Starting Discord client...");
     client.start().await?;
+    info!("Shut down");
     Ok(())
 }
 
@@ -132,4 +140,33 @@ async fn on_event(
         commands::help::handle_component(framework.serenity_context, component).await?;
     }
     Ok(())
+}
+
+/// Disconnects cleanly on SIGINT or SIGTERM, and at the season rollover so systemd restarts
+/// the bot on the new season.
+async fn shut_down_on_signal(shards: Arc<ShardManager>, rolls_over: bool) {
+    let mut terminate = match signal(SignalKind::terminate()) {
+        Ok(terminate) => terminate,
+        Err(err) => {
+            error!(error = %err, "Could not listen for SIGTERM");
+            return;
+        }
+    };
+    let rollover = async {
+        if !rolls_over {
+            return std::future::pending().await;
+        }
+        let until = (config::next_rollover(Utc::now()) - Utc::now())
+            .to_std()
+            .unwrap_or_default();
+        tokio::time::sleep(until).await;
+    };
+
+    let reason = tokio::select! {
+        _ = tokio::signal::ctrl_c() => "interrupt",
+        _ = terminate.recv() => "terminate",
+        () = rollover => "season rollover",
+    };
+    info!(reason, "Shutting down");
+    shards.shutdown_all().await;
 }
