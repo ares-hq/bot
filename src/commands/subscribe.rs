@@ -1,28 +1,25 @@
 use crate::bot_state::{Colors, error_embed, success_embed, warning_embed};
 use crate::commands::{
-    bot_can_post, can_manage_channels, cannot_post_here, needs_manage_channels, not_saved,
-    option_str, respond, server_only,
+    Context, bot_can_post, can_manage_channels, cannot_post_here, needs_manage_channels, not_saved,
+    respond,
 };
 use crate::live::RouteChange;
-use crate::services::Services;
 use crate::store::Placement;
 use anyhow::Result;
 use model::first::{ApiClient, ApiParams, EventCode, EventSummary, EventsResponse};
-use serenity::all::{
-    ChannelId, CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
-    CreateEmbed, CreateEmbedFooter,
-};
+use serenity::all::{ChannelId, CreateEmbed, CreateEmbedFooter};
 
-pub async fn run(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-    services: &Services,
+/// Follow every match result from an event in this channel, or see this server's subscriptions.
+#[poise::command(slash_command, guild_only)]
+pub async fn subscribe(
+    ctx: Context<'_>,
+    #[description = "Event code, like USAZTUQ."] event_code: Option<String>,
 ) -> Result<()> {
-    let Some(guild_id) = interaction.guild_id else {
-        return respond::public(ctx, interaction, server_only()).await;
+    let Some(guild_id) = ctx.guild_id() else {
+        return Ok(());
     };
-
-    let Some(raw) = option_str(interaction, "event_code") else {
+    let services = ctx.data();
+    let Some(raw) = event_code else {
         let embed = match services.subscriptions.list(guild_id).await {
             Ok(subs) => subscriptions_embed(&subs),
             Err(err) => {
@@ -31,10 +28,10 @@ pub async fn run(
                     "Subscriptions Unavailable",
                     "Couldn't load this server's subscriptions. Please try again in a moment.",
                 );
-                return respond::ephemeral(ctx, interaction, embed).await;
+                return respond::ephemeral(ctx, embed).await;
             }
         };
-        return respond::public(ctx, interaction, embed).await;
+        return respond::public(ctx, embed).await;
     };
 
     let Some(first) = services.first.as_ref() else {
@@ -42,13 +39,13 @@ pub async fn run(
             "Not Available",
             "Event subscriptions aren't available right now.",
         );
-        return respond::ephemeral(ctx, interaction, embed).await;
+        return respond::ephemeral(ctx, embed).await;
     };
-    if !can_manage_channels(interaction) {
-        return respond::ephemeral(ctx, interaction, needs_manage_channels("subscriptions")).await;
+    if !can_manage_channels(ctx) {
+        return respond::ephemeral(ctx, needs_manage_channels("subscriptions")).await;
     }
-    if !bot_can_post(interaction) {
-        return respond::ephemeral(ctx, interaction, cannot_post_here()).await;
+    if !bot_can_post(ctx) {
+        return respond::ephemeral(ctx, cannot_post_here()).await;
     }
 
     let Ok(code) = raw.parse::<EventCode>() else {
@@ -56,9 +53,9 @@ pub async fn run(
             "Invalid Event Code",
             "Event codes are letters and numbers, like USAZTUQ. You'll find it on the event's FIRST page.",
         );
-        return respond::ephemeral(ctx, interaction, embed).await;
+        return respond::ephemeral(ctx, embed).await;
     };
-    respond::defer(ctx, interaction).await?;
+    ctx.defer().await?;
 
     let event = match find_event(first, services.season, &code).await {
         Ok(Some(event)) => event,
@@ -67,7 +64,7 @@ pub async fn run(
                 "Unknown Event",
                 &format!("Couldn't find an event with the code **{code}** this season."),
             );
-            return respond::edit(ctx, interaction, embed).await;
+            return respond::public(ctx, embed).await;
         }
         Err(err) => {
             tracing::error!(event = %code, error = %err, "Could not look up event");
@@ -75,10 +72,10 @@ pub async fn run(
                 "Event Lookup Failed",
                 "Couldn't look that event up right now. Please try again in a moment.",
             );
-            return respond::edit(ctx, interaction, embed).await;
+            return respond::public(ctx, embed).await;
         }
     };
-    let channel = interaction.channel_id;
+    let channel = ctx.channel_id();
     let placement = match services
         .subscriptions
         .subscribe(guild_id, &code, channel)
@@ -87,7 +84,7 @@ pub async fn run(
         Ok(placement) => placement,
         Err(err) => {
             tracing::error!(%guild_id, event = %code, error = %err, "Could not save subscription");
-            return respond::edit(ctx, interaction, not_saved()).await;
+            return respond::public(ctx, not_saved()).await;
         }
     };
 
@@ -114,7 +111,7 @@ pub async fn run(
         });
     }
 
-    respond::edit(ctx, interaction, embed).await
+    respond::public(ctx, embed).await
 }
 
 async fn find_event(
@@ -150,17 +147,4 @@ fn subscriptions_embed(subs: &[(EventCode, ChannelId)]) -> CreateEmbed {
     embed.description(listed).footer(CreateEmbedFooter::new(
         "Use /subscribe in another channel to move an event, or /unsubscribe to stop one.",
     ))
-}
-
-pub fn register() -> CreateCommand {
-    CreateCommand::new("subscribe")
-        .description("Follow every match result from an event in this channel, or see this server's subscriptions.")
-        .add_option(
-            CreateCommandOption::new(
-                CommandOptionType::String,
-                "event_code",
-                "Event code, like USAZTUQ.",
-            )
-            .required(false),
-        )
 }

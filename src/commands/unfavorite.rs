@@ -1,32 +1,27 @@
-use crate::bot_state::{error_embed, success_embed, warning_embed};
-use crate::commands::{
-    can_manage_channels, needs_manage_channels, not_saved, option_str, respond, server_only,
-    suggest,
-};
+use crate::bot_state::{success_embed, warning_embed};
+use crate::commands::{Context, matching, not_saved, respond};
 use crate::live::RouteChange;
-use crate::services::Services;
 use anyhow::Result;
-use serenity::all::{
-    CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
-};
+use serenity::all::CreateAutocompleteResponse;
 
-pub async fn run(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-    services: &Services,
+/// Stop following a team's match results.
+#[poise::command(
+    slash_command,
+    guild_only,
+    default_member_permissions = "MANAGE_CHANNELS"
+)]
+pub async fn unfavorite(
+    ctx: Context<'_>,
+    #[description = "One of this server's favorite teams."]
+    #[min = 1]
+    #[autocomplete = "suggest_favorites"]
+    team_number: u32,
 ) -> Result<()> {
-    let Some(guild) = interaction.guild_id else {
-        return respond::public(ctx, interaction, server_only()).await;
+    let Some(guild) = ctx.guild_id() else {
+        return Ok(());
     };
-    let Some(Ok(team)) =
-        option_str(interaction, "team_number").map(|raw| raw.trim().parse::<u32>())
-    else {
-        let embed = error_embed("Invalid Team Number", "Enter a team number, like 14584.");
-        return respond::ephemeral(ctx, interaction, embed).await;
-    };
-    if !can_manage_channels(interaction) {
-        return respond::ephemeral(ctx, interaction, needs_manage_channels("favorites")).await;
-    }
+    let services = ctx.data();
+    let team = team_number;
 
     let embed = match services.favorites.unfavorite(guild, team).await {
         Ok(true) => {
@@ -42,28 +37,26 @@ pub async fn run(
         ),
         Err(err) => {
             tracing::error!(%guild, team, error = %err, "Could not remove favorite");
-            return respond::ephemeral(ctx, interaction, not_saved()).await;
+            return respond::ephemeral(ctx, not_saved()).await;
         }
     };
-    respond::public(ctx, interaction, embed).await
+    respond::public(ctx, embed).await
 }
 
-/// Suggests this server's favorites, named when the team is known.
-pub async fn autocomplete(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-    services: &Services,
-) -> Result<()> {
-    let Some(guild) = interaction.guild_id else {
-        return Ok(());
+/// This server's favorites, named when the team is known.
+async fn suggest_favorites(ctx: Context<'_>, typed: &str) -> CreateAutocompleteResponse {
+    let response = CreateAutocompleteResponse::new();
+    let Some(guild) = ctx.guild_id() else {
+        return response;
     };
-    let numbers: Vec<u32> = services
-        .favorites
-        .list_favorites(guild)
-        .await?
-        .into_iter()
-        .map(|(number, _)| number)
-        .collect();
+    let services = ctx.data();
+    let numbers: Vec<u32> = match services.favorites.list_favorites(guild).await {
+        Ok(favorites) => favorites.into_iter().map(|(number, _)| number).collect(),
+        Err(err) => {
+            tracing::warn!(%guild, error = %err, "Could not suggest favorites");
+            return response;
+        }
+    };
     let known = services.teams.teams(&numbers).await.unwrap_or_default();
 
     let choices = numbers.into_iter().map(|number| {
@@ -71,21 +64,9 @@ pub async fn autocomplete(
             Some(team) if !team.name.is_empty() => format!("{number} · {}", team.name),
             _ => format!("Team {number}"),
         };
-        (label, number.to_string())
+        (label, number)
     });
-    suggest(ctx, interaction, choices).await
-}
-
-pub fn register() -> CreateCommand {
-    CreateCommand::new("unfavorite")
-        .description("Stop following a team's match results.")
-        .add_option(
-            CreateCommandOption::new(
-                CommandOptionType::String,
-                "team_number",
-                "One of this server's favorite teams.",
-            )
-            .required(true)
-            .set_autocomplete(true),
-        )
+    matching(typed, choices).fold(response, |r, (label, number)| {
+        r.add_int_choice(label, number.into())
+    })
 }

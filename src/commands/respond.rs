@@ -1,77 +1,28 @@
 use anyhow::Result;
-use serenity::all::{
-    CommandInteraction, Context, CreateAttachment, CreateEmbed, CreateInteractionResponse,
-    CreateInteractionResponseMessage, EditInteractionResponse,
-};
+use poise::CreateReply;
+use serenity::all::{CreateAttachment, CreateEmbed};
 
-pub async fn ephemeral(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-    embed: CreateEmbed,
-) -> Result<()> {
-    interaction
-        .create_response(
-            &ctx.http,
-            CreateInteractionResponse::Message(
-                CreateInteractionResponseMessage::new()
-                    .embed(embed)
-                    .ephemeral(true),
-            ),
-        )
+use super::Context;
+
+/// Answers the command, or replaces its "thinking" message once deferred.
+pub async fn public(ctx: Context<'_>, embed: CreateEmbed) -> Result<()> {
+    ctx.send(CreateReply::default().embed(embed)).await?;
+    Ok(())
+}
+
+/// Only the person who ran the command sees it, unless the reply was already deferred.
+pub async fn ephemeral(ctx: Context<'_>, embed: CreateEmbed) -> Result<()> {
+    ctx.send(CreateReply::default().embed(embed).ephemeral(true))
         .await?;
     Ok(())
 }
 
-pub async fn public(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-    embed: CreateEmbed,
-) -> Result<()> {
-    interaction
-        .create_response(
-            &ctx.http,
-            CreateInteractionResponse::Message(
-                CreateInteractionResponseMessage::new().embed(embed),
-            ),
-        )
-        .await?;
-    Ok(())
-}
-
-pub async fn defer(ctx: &Context, interaction: &CommandInteraction) -> Result<()> {
-    interaction
-        .create_response(
-            &ctx.http,
-            CreateInteractionResponse::Defer(CreateInteractionResponseMessage::new()),
-        )
-        .await?;
-    Ok(())
-}
-
-pub async fn edit(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-    embed: CreateEmbed,
-) -> Result<()> {
-    interaction
-        .edit_response(&ctx.http, EditInteractionResponse::new().embed(embed))
-        .await?;
-    Ok(())
-}
-
-pub async fn edit_with_attachment(
-    ctx: &Context,
-    interaction: &CommandInteraction,
+pub async fn with_attachment(
+    ctx: Context<'_>,
     embed: CreateEmbed,
     attachment: CreateAttachment,
 ) -> Result<()> {
-    interaction
-        .edit_response(
-            &ctx.http,
-            EditInteractionResponse::new()
-                .embed(embed)
-                .new_attachment(attachment),
-        )
+    ctx.send(CreateReply::default().embed(embed).attachment(attachment))
         .await?;
     Ok(())
 }

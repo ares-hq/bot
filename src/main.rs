@@ -12,12 +12,13 @@ mod subscriptions;
 mod team_store;
 
 use anyhow::Result;
-use serenity::all::{Client, Context, EventHandler, GatewayIntents, Interaction, Ready};
+use serenity::all::{
+    ActivityData, ClientBuilder, Command, FullEvent, GatewayIntents, Interaction,
+};
 use std::sync::Arc;
 use tracing::{error, info, warn};
 
-use bot_state::error_embed;
-use commands::{Command, respond};
+use commands::Error;
 use config::Config;
 use favorites::FavoritesManager;
 use live::{Live, LiveHandle};
@@ -26,87 +27,6 @@ use model::prelude::Supabase;
 use services::Services;
 use subscriptions::Subscriptions;
 use team_store::TeamStore;
-
-struct Handler {
-    services: Arc<Services>,
-    config: Arc<Config>,
-}
-
-#[serenity::async_trait]
-impl EventHandler for Handler {
-    async fn ready(&self, ctx: Context, ready: Ready) {
-        info!("{} is connected as {}", bot_state::VERSION, ready.user.name);
-
-        let commands: Vec<_> = Command::ALL.into_iter().map(Command::register).collect();
-
-        if self.config.debug_mode {
-            if let Some(dev_server) = self.config.dev_server_id {
-                info!("Registering commands to development server: {}", dev_server);
-                if let Err(e) = serenity::all::GuildId::new(dev_server)
-                    .set_commands(&ctx.http, commands)
-                    .await
-                {
-                    error!("Failed to register guild commands: {}", e);
-                }
-            }
-        } else {
-            info!("Registering commands globally");
-            if let Err(e) = serenity::all::Command::set_global_commands(&ctx.http, commands).await {
-                error!("Failed to register global commands: {}", e);
-            }
-        }
-
-        ctx.set_activity(Some(serenity::all::ActivityData::playing(
-            bot_state::PRESENCE,
-        )));
-
-        info!("{} Bot is ready!", bot_state::NAME);
-    }
-
-    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::Command(command) = &interaction {
-            if self.config.debug_mode {
-                let channel_u64 = command.channel_id.get();
-                let allowed = self.config.dev_channel_ids.contains(&channel_u64);
-
-                if !allowed {
-                    let embed = error_embed(
-                        "Not Available Here",
-                        "ARES is being updated and only answers in certain channels right now.",
-                    );
-                    let _ = respond::ephemeral(&ctx, command, embed).await;
-                    return;
-                }
-            }
-
-            let Some(name) = Command::from_name(&command.data.name) else {
-                let embed = error_embed("Unknown Command", "This command is not recognized.");
-                let _ = respond::ephemeral(&ctx, command, embed).await;
-                return;
-            };
-
-            if let Err(e) = name.run(&ctx, command, &self.services).await {
-                error!("Error handling command '{}': {}", command.data.name, e);
-            }
-            return;
-        }
-
-        if let Interaction::Autocomplete(request) = &interaction {
-            if let Some(command) = Command::from_name(&request.data.name)
-                && let Err(e) = command.autocomplete(&ctx, request, &self.services).await
-            {
-                error!("Error suggesting for '{}': {}", request.data.name, e);
-            }
-            return;
-        }
-
-        if let Interaction::Component(component) = &interaction
-            && let Err(e) = commands::help::handle_component(&ctx, component).await
-        {
-            error!("Error handling component interaction: {}", e);
-        }
-    }
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -136,19 +56,54 @@ async fn main() -> Result<()> {
         first: first.clone(),
         season,
         live,
+        debug_channels: config.debug_mode.then(|| config.dev_channel_ids.clone()),
     });
 
     info!("Services initialized");
 
+    let framework = poise::Framework::builder()
+        .options(poise::FrameworkOptions {
+            commands: commands::all(),
+            on_error: |error| Box::pin(commands::on_error(error)),
+            command_check: Some(|ctx| Box::pin(commands::allowed_here(ctx))),
+            event_handler: |framework, event| Box::pin(on_event(framework, event)),
+            ..Default::default()
+        })
+        .setup({
+            let services = services.clone();
+            let (debug_mode, dev_server) = (config.debug_mode, config.dev_server_id);
+            move |ctx, ready, framework| {
+                Box::pin(async move {
+                    info!("{} is connected as {}", bot_state::VERSION, ready.user.name);
+
+                    let commands =
+                        poise::builtins::create_application_commands(&framework.options().commands);
+                    let registered = match (debug_mode, dev_server) {
+                        (false, _) => {
+                            info!("Registering commands globally");
+                            Command::set_global_commands(ctx, commands).await.map(drop)
+                        }
+                        (true, Some(guild)) => {
+                            info!("Registering commands to development server: {guild}");
+                            guild.set_commands(ctx, commands).await.map(drop)
+                        }
+                        (true, None) => Ok(()),
+                    };
+                    if let Err(e) = registered {
+                        error!("Failed to register commands: {e}");
+                    }
+
+                    ctx.set_activity(Some(ActivityData::playing(bot_state::PRESENCE)));
+                    info!("{} Bot is ready!", bot_state::NAME);
+                    Ok(services)
+                })
+            }
+        })
+        .build();
+
     let intents = GatewayIntents::GUILDS | GatewayIntents::DIRECT_MESSAGES;
-
-    let handler = Handler {
-        services: services.clone(),
-        config: Arc::new(config.clone()),
-    };
-
-    let mut client = Client::builder(&config.discord_token, intents)
-        .event_handler(handler)
+    let mut client = ClientBuilder::new(&config.discord_token, intents)
+        .framework(framework)
         .await?;
 
     if let Some(first) = first {
@@ -159,6 +114,18 @@ async fn main() -> Result<()> {
 
     info!("Starting Discord client...");
     client.start().await?;
+    Ok(())
+}
 
+async fn on_event(
+    framework: poise::FrameworkContext<'_, Arc<Services>, Error>,
+    event: &FullEvent,
+) -> Result<()> {
+    if let FullEvent::InteractionCreate {
+        interaction: Interaction::Component(component),
+    } = event
+    {
+        commands::help::handle_component(framework.serenity_context, component).await?;
+    }
     Ok(())
 }

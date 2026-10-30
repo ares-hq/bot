@@ -67,6 +67,7 @@ Three pages of command reference and a note on how to read OPR.
 - `/subscribe` posts every match result card from an event
 - `/unfavorite` and `/unsubscribe` work from any channel and suggest what the server follows
 - Match results post shortly after each score is official
+- Team numbers are checked as you type them
 
 ### v3.0.0
 

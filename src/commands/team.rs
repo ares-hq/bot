@@ -1,30 +1,20 @@
-use crate::bot_state::{Colors, error_embed, warning_embed};
-use crate::commands::{option_str, respond};
-use crate::favorites::FavoritesManager;
-use crate::team_store::TeamStore;
+use crate::bot_state::{Colors, error_embed};
+use crate::commands::{Context, respond};
 use anyhow::Result;
-use serenity::all::{
-    CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
-    CreateEmbed, CreateEmbedFooter,
-};
+use serenity::all::{CreateEmbed, CreateEmbedFooter};
 
-pub async fn run(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-    store: &TeamStore,
-    favorites: &FavoritesManager,
+/// Displays team information.
+#[poise::command(slash_command)]
+pub async fn team(
+    ctx: Context<'_>,
+    #[description = "Team number, like 14584."]
+    #[min = 1]
+    team_number: u32,
 ) -> Result<()> {
-    let raw = option_str(interaction, "team_number")
-        .ok_or_else(|| anyhow::anyhow!("team_number is required"))?;
+    ctx.defer().await?;
+    let services = ctx.data();
 
-    let Ok(team_number) = raw.parse::<u32>() else {
-        let embed = warning_embed("Invalid Team Number", "Enter a team number, like 14584.");
-        return respond::ephemeral(ctx, interaction, embed).await;
-    };
-
-    respond::defer(ctx, interaction).await?;
-
-    let team = match store.team(team_number).await {
+    let team = match services.teams.team(team_number).await {
         Ok(team) => team,
         Err(err) => {
             tracing::warn!(team_number, error = %err, "Team lookup failed");
@@ -32,12 +22,12 @@ pub async fn run(
                 "Team Not Found",
                 &format!("Couldn't find team {team_number} this season."),
             );
-            return respond::edit(ctx, interaction, embed).await;
+            return respond::public(ctx, embed).await;
         }
     };
 
-    let starred = match interaction.guild_id {
-        Some(guild_id) => favorites.is_favorite(guild_id, team_number).await,
+    let starred = match ctx.guild_id() {
+        Some(guild_id) => services.favorites.is_favorite(guild_id, team_number).await,
         None => false,
     };
 
@@ -73,18 +63,5 @@ pub async fn run(
             None => "Unranked".to_owned(),
         }));
 
-    respond::edit(ctx, interaction, embed).await
-}
-
-pub fn register() -> CreateCommand {
-    CreateCommand::new("team")
-        .description("Displays team information.")
-        .add_option(
-            CreateCommandOption::new(
-                CommandOptionType::String,
-                "team_number",
-                "Details about the team.",
-            )
-            .required(true),
-        )
+    respond::public(ctx, embed).await
 }

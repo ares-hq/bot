@@ -10,40 +10,50 @@ pub mod unsubscribe;
 use crate::bot_state::error_embed;
 use crate::services::Services;
 use anyhow::Result;
-use serenity::all::{
-    CommandInteraction, Context, CreateAutocompleteResponse, CreateCommand, CreateEmbed,
-    CreateInteractionResponse, Permissions,
-};
+use poise::FrameworkError;
+use serenity::all::{CommandInteraction, CreateEmbed, Permissions};
+use std::sync::Arc;
+
+pub type Error = anyhow::Error;
+pub type Context<'a> = poise::Context<'a, Arc<Services>, Error>;
+pub type Command = poise::Command<Arc<Services>, Error>;
 
 /// Discord shows at most this many suggestions.
 const MAX_SUGGESTIONS: usize = 25;
 
-pub fn option_str<'a>(interaction: &'a CommandInteraction, name: &str) -> Option<&'a str> {
-    interaction
-        .data
-        .options
-        .iter()
-        .find(|opt| opt.name == name)?
-        .value
-        .as_str()
+pub fn all() -> Vec<Command> {
+    vec![
+        team::team(),
+        match_cmd::simulate(),
+        favorite::favorite(),
+        unfavorite::unfavorite(),
+        subscribe::subscribe(),
+        unsubscribe::unsubscribe(),
+        help::help(),
+    ]
 }
 
-pub fn can_manage_channels(interaction: &CommandInteraction) -> bool {
-    interaction
-        .member
-        .as_ref()
-        .and_then(|m| m.permissions)
+fn interaction(ctx: Context<'_>) -> Option<&CommandInteraction> {
+    match ctx {
+        poise::Context::Application(app) => Some(app.interaction),
+        poise::Context::Prefix(_) => None,
+    }
+}
+
+pub fn can_manage_channels(ctx: Context<'_>) -> bool {
+    interaction(ctx)
+        .and_then(|i| i.member.as_ref()?.permissions)
         .is_some_and(|p| p.manage_channels())
 }
 
 /// What the bot needs in a channel to post a match card there.
-pub fn bot_can_post(interaction: &CommandInteraction) -> bool {
+pub fn bot_can_post(ctx: Context<'_>) -> bool {
     let needed = Permissions::VIEW_CHANNEL
         | Permissions::SEND_MESSAGES
         | Permissions::EMBED_LINKS
         | Permissions::ATTACH_FILES;
-    interaction
-        .app_permissions
+    interaction(ctx)
+        .and_then(|i| i.app_permissions)
         .is_some_and(|p| p.contains(needed))
 }
 
@@ -72,114 +82,56 @@ pub fn not_saved() -> CreateEmbed {
     )
 }
 
-/// Answers an autocomplete with the `(label, value)` pairs matching what was typed.
-pub async fn suggest(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-    choices: impl IntoIterator<Item = (String, String)>,
-) -> Result<()> {
-    let typed = interaction
-        .data
-        .autocomplete()
-        .map(|o| o.value.to_lowercase())
-        .unwrap_or_default();
-    let response = choices
+/// The `(label, value)` pairs whose label contains what was typed.
+pub fn matching<T>(
+    typed: &str,
+    choices: impl IntoIterator<Item = (String, T)>,
+) -> impl Iterator<Item = (String, T)> {
+    let typed = typed.to_lowercase();
+    choices
         .into_iter()
-        .filter(|(label, _)| label.to_lowercase().contains(&typed))
+        .filter(move |(label, _)| label.to_lowercase().contains(&typed))
         .take(MAX_SUGGESTIONS)
-        .fold(CreateAutocompleteResponse::new(), |r, (label, value)| {
-            r.add_string_choice(label, value)
-        });
-    interaction
-        .create_response(&ctx.http, CreateInteractionResponse::Autocomplete(response))
-        .await?;
-    Ok(())
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Command {
-    Team,
-    Match,
-    Favorite,
-    Unfavorite,
-    Subscribe,
-    Unsubscribe,
-    Help,
+/// In debug mode, answers only in the development channels.
+pub async fn allowed_here(ctx: Context<'_>) -> Result<bool> {
+    let Some(allowed) = &ctx.data().debug_channels else {
+        return Ok(true);
+    };
+    if allowed.contains(&ctx.channel_id()) {
+        return Ok(true);
+    }
+    let embed = error_embed(
+        "Not Available Here",
+        "ARES is being updated and only answers in certain channels right now.",
+    );
+    respond::ephemeral(ctx, embed).await?;
+    Ok(false)
 }
 
-impl Command {
-    pub const ALL: [Command; 7] = [
-        Command::Team,
-        Command::Match,
-        Command::Favorite,
-        Command::Unfavorite,
-        Command::Subscribe,
-        Command::Unsubscribe,
-        Command::Help,
-    ];
-
-    pub fn name(self) -> &'static str {
-        match self {
-            Command::Team => "team",
-            Command::Match => "match",
-            Command::Favorite => "favorite",
-            Command::Unfavorite => "unfavorite",
-            Command::Subscribe => "subscribe",
-            Command::Unsubscribe => "unsubscribe",
-            Command::Help => "help",
+pub async fn on_error(error: FrameworkError<'_, Arc<Services>, Error>) {
+    let reply = match error {
+        FrameworkError::Command { error, ctx, .. } => {
+            tracing::error!(command = %ctx.command().name, error = %error, "Command failed");
+            return;
         }
-    }
-
-    pub fn from_name(name: &str) -> Option<Command> {
-        Command::ALL.into_iter().find(|c| c.name() == name)
-    }
-
-    pub fn register(self) -> CreateCommand {
-        match self {
-            Command::Team => team::register(),
-            Command::Match => match_cmd::register(),
-            Command::Favorite => favorite::register(),
-            Command::Unfavorite => unfavorite::register(),
-            Command::Subscribe => subscribe::register(),
-            Command::Unsubscribe => unsubscribe::register(),
-            Command::Help => help::register(),
+        FrameworkError::GuildOnly { ctx, .. } => respond::ephemeral(ctx, server_only()).await,
+        FrameworkError::ArgumentParse { ctx, .. } => {
+            let embed = error_embed(
+                "Check Your Input",
+                "That doesn't look right. Please try again.",
+            );
+            respond::ephemeral(ctx, embed).await
         }
-    }
-
-    pub async fn run(
-        self,
-        ctx: &Context,
-        interaction: &CommandInteraction,
-        services: &Services,
-    ) -> Result<()> {
-        match self {
-            Command::Team => {
-                team::run(ctx, interaction, &services.teams, &services.favorites).await
-            }
-            Command::Match => match_cmd::run(ctx, interaction, &services.teams).await,
-            Command::Favorite => favorite::run(ctx, interaction, services).await,
-            Command::Unfavorite => unfavorite::run(ctx, interaction, services).await,
-            Command::Subscribe => subscribe::run(ctx, interaction, services).await,
-            Command::Unsubscribe => unsubscribe::run(ctx, interaction, services).await,
-            Command::Help => help::run(ctx, interaction).await,
+        FrameworkError::CommandCheckFailed { error: None, .. } => return,
+        other => {
+            tracing::error!(error = %other, "Command could not run");
+            return;
         }
-    }
-
-    pub async fn autocomplete(
-        self,
-        ctx: &Context,
-        interaction: &CommandInteraction,
-        services: &Services,
-    ) -> Result<()> {
-        match self {
-            Command::Unfavorite => unfavorite::autocomplete(ctx, interaction, services).await,
-            Command::Unsubscribe => unsubscribe::autocomplete(ctx, interaction, services).await,
-            Command::Team
-            | Command::Match
-            | Command::Favorite
-            | Command::Subscribe
-            | Command::Help => Ok(()),
-        }
+    };
+    if let Err(err) = reply {
+        tracing::error!(error = %err, "Could not answer a failed command");
     }
 }
 
@@ -188,23 +140,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_command_round_trips_through_its_name() {
-        for command in Command::ALL {
-            assert_eq!(Command::from_name(command.name()), Some(command));
+    fn every_command_has_a_unique_name() {
+        let mut names: Vec<String> = all().into_iter().map(|c| c.name.into_owned()).collect();
+        let count = names.len();
+        names.sort_unstable();
+        names.dedup();
+        assert_eq!(names.len(), count);
+        assert!(names.iter().any(|n| n == "match"));
+    }
+
+    #[test]
+    fn every_description_fits_discord() {
+        for command in all() {
+            let description = command.description.unwrap_or_default();
+            assert!(
+                (1..=100).contains(&description.len()),
+                "/{}: {description:?}",
+                command.name
+            );
+            for param in command.parameters {
+                let description = param.description.unwrap_or_default();
+                assert!((1..=100).contains(&description.len()), "{}", param.name);
+            }
         }
     }
 
     #[test]
-    fn names_are_unique() {
-        let mut names: Vec<&str> = Command::ALL.iter().map(|c| c.name()).collect();
-        names.sort_unstable();
-        let count = names.len();
-        names.dedup();
-        assert_eq!(names.len(), count);
-    }
-
-    #[test]
-    fn an_unknown_name_has_no_command() {
-        assert_eq!(Command::from_name("nope"), None);
+    fn suggestions_match_case_insensitively_and_cap_at_the_limit() {
+        let choices = (0..40).map(|n| (format!("Team {n}"), n));
+        assert_eq!(matching("team", choices).count(), MAX_SUGGESTIONS);
+        let picked: Vec<_> = matching("PIONEER", [("14584 · Pioneer 327".to_owned(), 14584)])
+            .map(|(_, n)| n)
+            .collect();
+        assert_eq!(picked, [14584]);
     }
 }

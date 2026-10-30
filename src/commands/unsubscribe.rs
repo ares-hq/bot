@@ -1,34 +1,33 @@
 use crate::bot_state::{error_embed, success_embed, warning_embed};
-use crate::commands::{
-    can_manage_channels, needs_manage_channels, not_saved, option_str, respond, server_only,
-    suggest,
-};
+use crate::commands::{Context, matching, not_saved, respond};
 use crate::live::RouteChange;
-use crate::services::Services;
 use anyhow::Result;
 use model::first::EventCode;
-use serenity::all::{
-    CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
-};
+use serenity::all::CreateAutocompleteResponse;
 
-pub async fn run(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-    services: &Services,
+/// Stop following an event's match results.
+#[poise::command(
+    slash_command,
+    guild_only,
+    default_member_permissions = "MANAGE_CHANNELS"
+)]
+pub async fn unsubscribe(
+    ctx: Context<'_>,
+    #[description = "One of the events this server follows."]
+    #[autocomplete = "suggest_events"]
+    event_code: String,
 ) -> Result<()> {
-    let Some(guild) = interaction.guild_id else {
-        return respond::public(ctx, interaction, server_only()).await;
+    let Some(guild) = ctx.guild_id() else {
+        return Ok(());
     };
-    let Some(Ok(code)) = option_str(interaction, "event_code").map(str::parse::<EventCode>) else {
+    let Ok(code) = event_code.parse::<EventCode>() else {
         let embed = error_embed(
             "Invalid Event Code",
             "Event codes are letters and numbers, like USAZTUQ.",
         );
-        return respond::ephemeral(ctx, interaction, embed).await;
+        return respond::ephemeral(ctx, embed).await;
     };
-    if !can_manage_channels(interaction) {
-        return respond::ephemeral(ctx, interaction, needs_manage_channels("subscriptions")).await;
-    }
+    let services = ctx.data();
 
     let embed = match services.subscriptions.unsubscribe(guild, &code).await {
         Ok(true) => {
@@ -45,40 +44,29 @@ pub async fn run(
         ),
         Err(err) => {
             tracing::error!(%guild, event = %code, error = %err, "Could not unsubscribe");
-            return respond::ephemeral(ctx, interaction, not_saved()).await;
+            return respond::ephemeral(ctx, not_saved()).await;
         }
     };
-    respond::public(ctx, interaction, embed).await
+    respond::public(ctx, embed).await
 }
 
-/// Suggests the events this server follows.
-pub async fn autocomplete(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-    services: &Services,
-) -> Result<()> {
-    let Some(guild) = interaction.guild_id else {
-        return Ok(());
+/// The events this server follows.
+async fn suggest_events(ctx: Context<'_>, typed: &str) -> CreateAutocompleteResponse {
+    let response = CreateAutocompleteResponse::new();
+    let Some(guild) = ctx.guild_id() else {
+        return response;
     };
-    let choices = services
-        .subscriptions
-        .list(guild)
-        .await?
+    let subscriptions = match ctx.data().subscriptions.list(guild).await {
+        Ok(subscriptions) => subscriptions,
+        Err(err) => {
+            tracing::warn!(%guild, error = %err, "Could not suggest events");
+            return response;
+        }
+    };
+    let choices = subscriptions
         .into_iter()
         .map(|(code, _)| (code.to_string(), code.into_string()));
-    suggest(ctx, interaction, choices).await
-}
-
-pub fn register() -> CreateCommand {
-    CreateCommand::new("unsubscribe")
-        .description("Stop following an event's match results.")
-        .add_option(
-            CreateCommandOption::new(
-                CommandOptionType::String,
-                "event_code",
-                "One of the events this server follows.",
-            )
-            .required(true)
-            .set_autocomplete(true),
-        )
+    matching(typed, choices).fold(response, |r, (label, code)| {
+        r.add_string_choice(label, code)
+    })
 }
