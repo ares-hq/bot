@@ -4,97 +4,40 @@ mod commands;
 mod config;
 mod favorites;
 mod image_generator;
+mod live;
 mod match_data;
+mod services;
+mod store;
+mod subscriptions;
 mod team_store;
 
 use anyhow::Result;
-use serenity::all::{Client, Context, EventHandler, GatewayIntents, Interaction, Ready};
+use chrono::Utc;
+use serenity::all::{
+    ActivityData, ClientBuilder, Command, FullEvent, GatewayIntents, Interaction, ShardManager,
+};
 use std::sync::Arc;
-use tracing::{error, info};
+use tokio::signal::unix::{SignalKind, signal};
+use tracing::{error, info, warn};
+use tracing_subscriber::EnvFilter;
 
-use bot_state::error_embed;
-use commands::{Command, respond};
+use commands::Error;
 use config::Config;
 use favorites::FavoritesManager;
+use live::{Live, LiveHandle};
+use model::first::{self, ApiClient};
+use model::prelude::Supabase;
+use services::Services;
+use subscriptions::Subscriptions;
 use team_store::TeamStore;
 
-struct Handler {
-    teams: Arc<TeamStore>,
-    favorites: Arc<FavoritesManager>,
-    config: Arc<Config>,
-}
-
-#[serenity::async_trait]
-impl EventHandler for Handler {
-    async fn ready(&self, ctx: Context, ready: Ready) {
-        info!("{} is connected as {}", bot_state::VERSION, ready.user.name);
-
-        let commands: Vec<_> = Command::ALL.into_iter().map(Command::register).collect();
-
-        if self.config.debug_mode {
-            if let Some(dev_server) = self.config.dev_server_id {
-                info!("Registering commands to development server: {}", dev_server);
-                if let Err(e) = serenity::all::GuildId::new(dev_server)
-                    .set_commands(&ctx.http, commands)
-                    .await
-                {
-                    error!("Failed to register guild commands: {}", e);
-                }
-            }
-        } else {
-            info!("Registering commands globally");
-            if let Err(e) = serenity::all::Command::set_global_commands(&ctx.http, commands).await {
-                error!("Failed to register global commands: {}", e);
-            }
-        }
-
-        ctx.set_activity(Some(serenity::all::ActivityData::playing(
-            bot_state::PRESENCE,
-        )));
-
-        info!("{} Bot is ready!", bot_state::NAME);
-    }
-
-    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::Command(command) = &interaction {
-            if self.config.debug_mode {
-                let channel_u64 = command.channel_id.get();
-                let allowed = self.config.dev_channel_ids.contains(&channel_u64);
-
-                if !allowed {
-                    let embed = error_embed(
-                        "Debug Mode",
-                        "Bot is in debug mode. Commands are restricted to specific channels.",
-                    );
-                    let _ = respond::ephemeral(&ctx, command, embed).await;
-                    return;
-                }
-            }
-
-            let Some(name) = Command::from_name(&command.data.name) else {
-                let embed = error_embed("Unknown Command", "This command is not recognized.");
-                let _ = respond::ephemeral(&ctx, command, embed).await;
-                return;
-            };
-
-            if let Err(e) = name.run(&ctx, command, &self.teams, &self.favorites).await {
-                error!("Error handling command '{}': {}", command.data.name, e);
-            }
-            return;
-        }
-
-        if let Interaction::Component(component) = &interaction
-            && let Err(e) = commands::help::handle_component(&ctx, component).await
-        {
-            error!("Error handling component interaction: {}", e);
-        }
-    }
-}
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+        .with_env_filter(EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
         .init();
 
     info!("Starting {} Bot {}", bot_state::NAME, bot_state::VERSION);
@@ -102,29 +45,128 @@ async fn main() -> Result<()> {
     let config = Config::from_env()?;
     info!("Configuration loaded");
 
-    let teams = TeamStore::new(
-        &config.supabase_url,
-        config.supabase_key.clone(),
-        config.season,
-    );
-    let favorites = FavoritesManager::new(&config.supabase_url, config.supabase_key.clone());
+    let season = config.year();
+    let first = match &config.first_credentials {
+        Some((user, pass)) => Some(ApiClient::new(first::BASE_URL, user.clone(), pass.clone())?),
+        None => {
+            warn!("FIRST_USERNAME/FIRST_PASS unset; live match cards disabled");
+            None
+        }
+    };
+    let db = Supabase::new(&config.supabase_url, config.supabase_key.clone());
+    let (live, inbox) = LiveHandle::channel();
+    let services = Arc::new(Services {
+        teams: Arc::new(TeamStore::new(db.clone(), season)),
+        favorites: Arc::new(FavoritesManager::new(db.clone())),
+        subscriptions: Arc::new(Subscriptions::new(db.clone(), season)),
+        first: first.clone(),
+        season,
+        live,
+        debug_channels: config.debug_mode.then(|| config.dev_channel_ids.clone()),
+    });
 
     info!("Services initialized");
 
+    let framework = poise::Framework::builder()
+        .options(poise::FrameworkOptions {
+            commands: commands::all(),
+            on_error: |error| Box::pin(commands::on_error(error)),
+            command_check: Some(|ctx| Box::pin(commands::allowed_here(ctx))),
+            event_handler: |framework, event| Box::pin(on_event(framework, event)),
+            ..Default::default()
+        })
+        .setup({
+            let services = services.clone();
+            let (debug_mode, dev_server) = (config.debug_mode, config.dev_server_id);
+            move |ctx, ready, framework| {
+                Box::pin(async move {
+                    info!("{} is connected as {}", bot_state::VERSION, ready.user.name);
+
+                    let commands =
+                        poise::builtins::create_application_commands(&framework.options().commands);
+                    let registered = match (debug_mode, dev_server) {
+                        (false, _) => {
+                            info!("Registering commands globally");
+                            Command::set_global_commands(ctx, commands).await.map(drop)
+                        }
+                        (true, Some(guild)) => {
+                            info!("Registering commands to development server: {guild}");
+                            guild.set_commands(ctx, commands).await.map(drop)
+                        }
+                        (true, None) => Ok(()),
+                    };
+                    if let Err(e) = registered {
+                        error!("Failed to register commands: {e}");
+                    }
+
+                    ctx.set_activity(Some(ActivityData::playing(bot_state::PRESENCE)));
+                    info!("{} Bot is ready!", bot_state::NAME);
+                    Ok(services)
+                })
+            }
+        })
+        .build();
+
     let intents = GatewayIntents::GUILDS | GatewayIntents::DIRECT_MESSAGES;
-
-    let handler = Handler {
-        teams: Arc::new(teams),
-        favorites: Arc::new(favorites),
-        config: Arc::new(config.clone()),
-    };
-
-    let mut client = Client::builder(&config.discord_token, intents)
-        .event_handler(handler)
+    let mut client = ClientBuilder::new(&config.discord_token, intents)
+        .framework(framework)
         .await?;
+
+    if let Some(first) = first {
+        let live = Live::new(&services, first, db, client.http.clone(), inbox);
+        tokio::spawn(live.run());
+        info!("Live match cards enabled for season {season}");
+    }
+
+    tokio::spawn(shut_down_on_signal(
+        client.shard_manager.clone(),
+        config.season.is_none(),
+    ));
 
     info!("Starting Discord client...");
     client.start().await?;
-
+    info!("Shut down");
     Ok(())
+}
+
+async fn on_event(
+    framework: poise::FrameworkContext<'_, Arc<Services>, Error>,
+    event: &FullEvent,
+) -> Result<()> {
+    if let FullEvent::InteractionCreate {
+        interaction: Interaction::Component(component),
+    } = event
+    {
+        commands::help::handle_component(framework.serenity_context, component).await?;
+    }
+    Ok(())
+}
+
+/// Disconnects cleanly on SIGINT or SIGTERM, and at the season rollover so systemd restarts
+/// the bot on the new season.
+async fn shut_down_on_signal(shards: Arc<ShardManager>, rolls_over: bool) {
+    let mut terminate = match signal(SignalKind::terminate()) {
+        Ok(terminate) => terminate,
+        Err(err) => {
+            error!(error = %err, "Could not listen for SIGTERM");
+            return;
+        }
+    };
+    let rollover = async {
+        if !rolls_over {
+            return std::future::pending().await;
+        }
+        let until = (config::next_rollover(Utc::now()) - Utc::now())
+            .to_std()
+            .unwrap_or_default();
+        tokio::time::sleep(until).await;
+    };
+
+    let reason = tokio::select! {
+        _ = tokio::signal::ctrl_c() => "interrupt",
+        _ = terminate.recv() => "terminate",
+        () = rollover => "season rollover",
+    };
+    info!(reason, "Shutting down");
+    shards.shutdown_all().await;
 }

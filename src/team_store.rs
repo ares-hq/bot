@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
-use chrono::{Datelike, Utc};
-use model::prelude::{Supabase, Team, current_season};
+use model::prelude::{Supabase, Team};
 use model::tables;
 use std::collections::HashMap;
 use std::sync::RwLock;
@@ -21,13 +20,9 @@ pub struct TeamStore {
 }
 
 impl TeamStore {
-    pub fn new(supabase_url: &str, supabase_key: String, season: Option<i32>) -> Self {
-        let year = season.unwrap_or_else(|| {
-            let now = Utc::now();
-            current_season(now.year(), now.month())
-        });
+    pub fn new(client: Supabase, year: i32) -> Self {
         Self {
-            client: Supabase::new(supabase_url, supabase_key),
+            client,
             table: tables::season(year),
             cache: RwLock::new(HashMap::new()),
             ttl: TTL,
@@ -79,18 +74,20 @@ impl TeamStore {
         Ok(found)
     }
 
-    pub async fn team(&self, team_number: u32) -> Result<Team> {
+    /// `None` when the team is not listed this season.
+    pub async fn team(&self, team_number: u32) -> Result<Option<Team>> {
         if let Some(team) = self.cached(team_number) {
-            return Ok(team);
+            return Ok(Some(team));
         }
 
         let team = self
             .client
             .team(&self.table, team_number)
             .await
-            .context("failed to read team")?
-            .context("team not found")?;
-        self.store(std::slice::from_ref(&team));
+            .context("failed to read team")?;
+        if let Some(team) = &team {
+            self.store(std::slice::from_ref(team));
+        }
         Ok(team)
     }
 }
@@ -100,7 +97,7 @@ mod tests {
     use super::*;
 
     fn store(ttl: Duration) -> TeamStore {
-        let mut store = TeamStore::new("https://example.invalid", "key".into(), Some(2025));
+        let mut store = TeamStore::new(Supabase::new("https://example.invalid", "key"), 2025);
         store.ttl = ttl;
         store
     }
@@ -117,19 +114,19 @@ mod tests {
     #[test]
     fn a_stored_team_reads_back_without_a_request() {
         let store = store(TTL);
-        store.store(&[team(254)]);
-        assert_eq!(store.cached(254).map(|t| t.number), Some(254));
+        store.store(&[team(14584)]);
+        assert_eq!(store.cached(14584).map(|t| t.number), Some(14584));
     }
 
     #[test]
     fn an_unknown_team_is_not_cached() {
-        assert!(store(TTL).cached(254).is_none());
+        assert!(store(TTL).cached(14584).is_none());
     }
 
     #[test]
     fn an_expired_entry_is_not_served() {
         let store = store(Duration::ZERO);
-        store.store(&[team(254)]);
-        assert!(store.cached(254).is_none(), "served a stale row");
+        store.store(&[team(14584)]);
+        assert!(store.cached(14584).is_none(), "served a stale row");
     }
 }

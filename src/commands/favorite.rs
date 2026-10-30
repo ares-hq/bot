@@ -1,65 +1,81 @@
-use crate::bot_state::{Colors, error_embed, success_embed};
-use crate::commands::{option_str, respond};
-use crate::favorites::FavoritesManager;
-use anyhow::Result;
-use serenity::all::{
-    CommandInteraction, CommandOptionType, Context, CreateCommand, CreateCommandOption,
-    CreateEmbed, CreateEmbedFooter,
+use crate::bot_state::{Colors, error_embed, success_embed, warning_embed};
+use crate::commands::{
+    Context, bot_can_post, can_manage_channels, cannot_post_here, needs_manage_channels, not_saved,
+    respond,
 };
+use crate::live::RouteChange;
+use crate::store::Placement;
+use anyhow::Result;
+use serenity::all::{ChannelId, CreateEmbed, CreateEmbedFooter};
 
-pub async fn run(
-    ctx: &Context,
-    interaction: &CommandInteraction,
-    favorites: &FavoritesManager,
+/// Follow a team's match results in this channel, or see this server's favorites.
+#[poise::command(slash_command, guild_only)]
+pub async fn favorite(
+    ctx: Context<'_>,
+    #[description = "Team number, like 14584."]
+    #[min = 1]
+    team_number: Option<u32>,
 ) -> Result<()> {
-    let Some(guild_id) = interaction.guild_id else {
-        let embed = error_embed("Guild Only", "This command can only be used in a server.");
-        return respond::public(ctx, interaction, embed).await;
+    let Some(guild) = ctx.guild_id() else {
+        return Ok(());
     };
-
-    let Some(raw) = option_str(interaction, "team_number") else {
-        let embed = match favorites.list_favorites(guild_id).await {
+    let services = ctx.data();
+    let Some(team) = team_number else {
+        let embed = match services.favorites.list_favorites(guild).await {
             Ok(teams) => favorites_embed(&teams),
             Err(err) => {
-                tracing::error!(%guild_id, error = %err, "Could not list favorites");
+                tracing::error!(%guild, error = %err, "Could not list favorites");
                 let embed = error_embed(
                     "Favorites Unavailable",
-                    "Could not read this server's favorites. Try again shortly.",
+                    "Couldn't load this server's favorites. Please try again in a moment.",
                 );
-                return respond::ephemeral(ctx, interaction, embed).await;
+                return respond::ephemeral(ctx, embed).await;
             }
         };
-        return respond::public(ctx, interaction, embed).await;
+        return respond::public(ctx, embed).await;
     };
 
-    let Ok(team_number) = raw.parse::<u32>() else {
-        let embed = error_embed("Error", "Team number must be numerical.");
-        return respond::ephemeral(ctx, interaction, embed).await;
-    };
+    if !can_manage_channels(ctx) {
+        return respond::ephemeral(ctx, needs_manage_channels("favorites")).await;
+    }
+    if !bot_can_post(ctx) {
+        return respond::ephemeral(ctx, cannot_post_here()).await;
+    }
 
-    let embed = match favorites.toggle_favorite(guild_id, team_number).await {
-        Ok(true) => success_embed(
-            "Favorite Added",
-            &format!("Team {team_number} added to favorites ⭐"),
-        ),
-        Ok(false) => success_embed(
-            "Favorite Removed",
-            &format!("Team {team_number} removed from favorites"),
-        ),
+    let channel = ctx.channel_id();
+    let placement = match services.favorites.favorite(guild, team, channel).await {
+        Ok(placement) => placement,
         Err(err) => {
-            tracing::error!(%guild_id, team_number, error = %err, "Could not save favorite");
-            let embed = error_embed(
-                "Favorite Not Saved",
-                "Could not reach the favorites store. Nothing was changed.",
-            );
-            return respond::ephemeral(ctx, interaction, embed).await;
+            tracing::error!(%guild, team, error = %err, "Could not save favorite");
+            return respond::ephemeral(ctx, not_saved()).await;
         }
     };
+    if placement != Placement::Unchanged {
+        services.route(RouteChange::Favorited {
+            guild,
+            channel,
+            team,
+        });
+    }
 
-    respond::public(ctx, interaction, embed).await
+    let embed = match placement {
+        Placement::Added => success_embed(
+            "Favorite Added",
+            &format!("Team {team} added to favorites ⭐\nMatch results will post in <#{channel}>."),
+        ),
+        Placement::Moved => success_embed(
+            "Favorite Moved",
+            &format!("Team {team} match results will now post in <#{channel}>."),
+        ),
+        Placement::Unchanged => warning_embed(
+            "Already a Favorite",
+            &format!("Team {team} already posts here. Use /unfavorite to remove it."),
+        ),
+    };
+    respond::public(ctx, embed).await
 }
 
-fn favorites_embed(teams: &[u32]) -> CreateEmbed {
+fn favorites_embed(teams: &[(u32, Option<ChannelId>)]) -> CreateEmbed {
     let embed = CreateEmbed::new()
         .title("Favorite Teams")
         .color(Colors::FAVORITE);
@@ -68,30 +84,20 @@ fn favorites_embed(teams: &[u32]) -> CreateEmbed {
         return embed
             .description("No favorite teams set.")
             .footer(CreateEmbedFooter::new(
-                "Run the command with a team number to add it to favorites.",
+                "Use /favorite with a team number to add one.",
             ));
     }
 
     let listed = teams
         .iter()
-        .map(|number| format!("Team {number} ⭐"))
+        .map(|(number, channel)| match channel {
+            Some(channel) => format!("Team {number} ⭐ → <#{channel}>"),
+            None => format!("Team {number} ⭐"),
+        })
         .collect::<Vec<_>>()
         .join("\n");
 
     embed.description(listed).footer(CreateEmbedFooter::new(
-        "Re-run the command with a team number to remove it from favorites.",
+        "Use /favorite in another channel to move a team, or /unfavorite to remove one.",
     ))
-}
-
-pub fn register() -> CreateCommand {
-    CreateCommand::new("favorite")
-        .description("Marks this as your favorite or shows favorite teams.")
-        .add_option(
-            CreateCommandOption::new(
-                CommandOptionType::String,
-                "team_number",
-                "The team to mark as favorite.",
-            )
-            .required(false),
-        )
 }

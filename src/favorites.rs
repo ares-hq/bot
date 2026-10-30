@@ -1,35 +1,34 @@
-//! ```sql
-//! create table favorites (
-//!   guild_id    text    not null,
-//!   team_number integer not null,
-//!   primary key (guild_id, team_number)
-//! );
-//! ```
-
 use anyhow::Result;
 use model::prelude::Supabase;
 use model::tables;
 use serde::{Deserialize, Serialize};
-use serenity::model::id::GuildId;
-use std::collections::{HashMap, HashSet};
+use serenity::model::id::{ChannelId, GuildId};
+use std::collections::HashMap;
 use std::sync::RwLock;
+
+use crate::store::{Placement, parse_id};
 
 #[derive(Serialize, Deserialize)]
 struct FavoriteRow {
     guild_id: String,
     team_number: u32,
+    #[serde(default)]
+    channel_id: Option<String>,
 }
+
+/// `None` channel: starred, but match cards are not posted.
+type GuildFavorites = HashMap<u32, Option<ChannelId>>;
 
 pub struct FavoritesManager {
     client: Supabase,
     /// A present key means that guild is loaded.
-    cache: RwLock<HashMap<GuildId, HashSet<u32>>>,
+    cache: RwLock<HashMap<GuildId, GuildFavorites>>,
 }
 
 impl FavoritesManager {
-    pub fn new(supabase_url: &str, supabase_key: String) -> Self {
+    pub fn new(client: Supabase) -> Self {
         Self {
-            client: Supabase::new(supabase_url, supabase_key),
+            client,
             cache: RwLock::new(HashMap::new()),
         }
     }
@@ -41,9 +40,16 @@ impl FavoritesManager {
 
         let rows: Vec<FavoriteRow> = self
             .client
-            .select(tables::FAVORITES, &[("guild_id", format!("eq.{guild_id}"))])
+            .select_all(
+                tables::FAVORITES,
+                &[("guild_id", format!("eq.{guild_id}"))],
+                "team_number",
+            )
             .await?;
-        let loaded: HashSet<u32> = rows.into_iter().map(|r| r.team_number).collect();
+        let loaded: GuildFavorites = rows
+            .into_iter()
+            .map(|r| (r.team_number, r.channel_id.as_deref().and_then(parse_id)))
+            .collect();
 
         self.cache
             .write()
@@ -53,12 +59,12 @@ impl FavoritesManager {
         Ok(())
     }
 
-    fn contains(&self, guild_id: GuildId, team_number: u32) -> bool {
+    fn current(&self, guild_id: GuildId, team_number: u32) -> Option<Option<ChannelId>> {
         self.cache
             .read()
             .unwrap()
             .get(&guild_id)
-            .is_some_and(|set| set.contains(&team_number))
+            .and_then(|teams| teams.get(&team_number).copied())
     }
 
     pub async fn is_favorite(&self, guild_id: GuildId, team_number: u32) -> bool {
@@ -66,52 +72,96 @@ impl FavoritesManager {
             tracing::warn!(%guild_id, error = %err, "Could not read favorites");
             return false;
         }
-        self.contains(guild_id, team_number)
+        self.current(guild_id, team_number).is_some()
     }
 
-    pub async fn list_favorites(&self, guild_id: GuildId) -> Result<Vec<u32>> {
+    pub async fn list_favorites(&self, guild_id: GuildId) -> Result<Vec<(u32, Option<ChannelId>)>> {
         self.ensure_loaded(guild_id).await?;
         let cache = self.cache.read().unwrap();
-        let mut teams: Vec<u32> = cache
+        let mut teams: Vec<_> = cache
             .get(&guild_id)
-            .map(|set| set.iter().copied().collect())
+            .map(|teams| teams.iter().map(|(&n, &c)| (n, c)).collect())
             .unwrap_or_default();
-        teams.sort_unstable();
+        teams.sort_unstable_by_key(|&(n, _)| n);
         Ok(teams)
     }
 
-    /// `true` if added, `false` if removed.
-    pub async fn toggle_favorite(&self, guild_id: GuildId, team_number: u32) -> Result<bool> {
+    pub async fn favorite(
+        &self,
+        guild_id: GuildId,
+        team_number: u32,
+        channel_id: ChannelId,
+    ) -> Result<Placement> {
         self.ensure_loaded(guild_id).await?;
-        let adding = !self.contains(guild_id, team_number);
-
-        if adding {
-            let row = FavoriteRow {
-                guild_id: guild_id.to_string(),
-                team_number,
-            };
-            self.client
-                .upsert(tables::FAVORITES, &[row], Some("guild_id,team_number"))
-                .await?;
-        } else {
-            self.client
-                .delete(
-                    tables::FAVORITES,
-                    &[
-                        ("guild_id", format!("eq.{guild_id}")),
-                        ("team_number", format!("eq.{team_number}")),
-                    ],
-                )
-                .await?;
+        let placement = Placement::decide(self.current(guild_id, team_number), channel_id);
+        if placement != Placement::Unchanged {
+            self.write(guild_id, team_number, Some(channel_id)).await?;
         }
+        Ok(placement)
+    }
 
-        let mut cache = self.cache.write().unwrap();
-        let set = cache.entry(guild_id).or_default();
-        if adding {
-            set.insert(team_number);
-        } else {
-            set.remove(&team_number);
+    /// `false` when the team was not a favorite.
+    pub async fn unfavorite(&self, guild_id: GuildId, team_number: u32) -> Result<bool> {
+        self.ensure_loaded(guild_id).await?;
+        if self.current(guild_id, team_number).is_none() {
+            return Ok(false);
         }
-        Ok(adding)
+        self.client
+            .delete(
+                tables::FAVORITES,
+                &[
+                    ("guild_id", format!("eq.{guild_id}")),
+                    ("team_number", format!("eq.{team_number}")),
+                ],
+            )
+            .await?;
+        if let Some(teams) = self.cache.write().unwrap().get_mut(&guild_id) {
+            teams.remove(&team_number);
+        }
+        Ok(true)
+    }
+
+    /// Keeps the star but stops posting cards, e.g. when the channel is gone.
+    pub async fn detach_channel(&self, guild_id: GuildId, team_number: u32) -> Result<()> {
+        self.write(guild_id, team_number, None).await
+    }
+
+    async fn write(
+        &self,
+        guild_id: GuildId,
+        team_number: u32,
+        channel_id: Option<ChannelId>,
+    ) -> Result<()> {
+        let row = FavoriteRow {
+            guild_id: guild_id.to_string(),
+            team_number,
+            channel_id: channel_id.map(|c| c.to_string()),
+        };
+        self.client
+            .upsert(tables::FAVORITES, &[row], Some("guild_id,team_number"))
+            .await?;
+        if let Some(teams) = self.cache.write().unwrap().get_mut(&guild_id) {
+            teams.insert(team_number, channel_id);
+        }
+        Ok(())
+    }
+
+    /// Every favorite in every guild that has a channel to post to.
+    pub async fn announced(&self) -> Result<Vec<(GuildId, u32, ChannelId)>> {
+        let rows: Vec<FavoriteRow> = self
+            .client
+            .select_all(
+                tables::FAVORITES,
+                &[("channel_id", "not.is.null".into())],
+                "guild_id,team_number",
+            )
+            .await?;
+        Ok(rows
+            .into_iter()
+            .filter_map(|r| {
+                let channel = parse_id(r.channel_id.as_deref()?)?;
+                Some((parse_id(&r.guild_id)?, r.team_number, channel))
+            })
+            .collect())
     }
 }
