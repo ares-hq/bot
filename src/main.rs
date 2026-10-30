@@ -17,6 +17,7 @@ use serenity::all::{
 };
 use std::sync::Arc;
 use tracing::{error, info, warn};
+use tracing_subscriber::EnvFilter;
 
 use commands::Error;
 use config::Config;
@@ -28,10 +29,13 @@ use services::Services;
 use subscriptions::Subscriptions;
 use team_store::TeamStore;
 
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+        .with_env_filter(EnvFilter::from_default_env().add_directive(tracing::Level::INFO.into()))
         .init();
 
     info!("Starting {} Bot {}", bot_state::NAME, bot_state::VERSION);
