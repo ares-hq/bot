@@ -54,6 +54,8 @@ struct BarRow {
 #[derive(Template)]
 #[template(path = "match_card.svg", escape = "html")]
 struct MatchCard {
+    title: String,
+    footer: String,
     r0: String,
     r1: String,
     b0: String,
@@ -100,60 +102,26 @@ pub struct ImageGenerator;
 
 impl ImageGenerator {
     pub fn create_match_image(red: &Alliance, blue: &Alliance) -> Result<Vec<u8>> {
-        let (r, b): (Scores, Scores) = (red.into(), blue.into());
-        let scored = Scored::new(r.clone(), b.clone());
-        let (r_total, b_total) = scored.totals();
-        let winner = scored.winner();
-        let red_win = winner == Some(Winner::Red);
-        let blue_win = winner == Some(Winner::Blue);
+        let scored = Scored::new(red.into(), blue.into());
+        match_card(
+            red,
+            blue,
+            &scored,
+            "SIMULATED MATCH",
+            "Estimated from OPR",
+            true,
+        )
+    }
 
-        let scale = 360.0
-            / [
-                r.auto,
-                b.auto,
-                r.teleop,
-                b.teleop,
-                r.endgame,
-                b.endgame,
-                r.penalties,
-                b.penalties,
-            ]
-            .into_iter()
-            .fold(1.0_f64, f64::max);
-
-        let rows = vec![
-            bar_row("AUTO", r.auto, b.auto, RED, BLUE, 386.0, scale),
-            bar_row("TELEOP", r.teleop, b.teleop, RED, BLUE, 432.0, scale),
-            bar_row("ENDGAME", r.endgame, b.endgame, RED, BLUE, 478.0, scale),
-            bar_row(
-                "PENALTIES",
-                b.penalties,
-                r.penalties,
-                BLUE,
-                RED,
-                524.0,
-                scale,
-            ),
-        ];
-
-        let card = MatchCard {
-            r0: slot_num(red, 0),
-            r1: slot_num(red, 1),
-            b0: slot_num(blue, 0),
-            b1: slot_num(blue, 1),
-            red_win,
-            blue_win,
-            red_stroke: if red_win { RED } else { STROKE },
-            blue_stroke: if blue_win { BLUE } else { STROKE },
-            red_total_col: if blue_win { DIM } else { RED },
-            blue_total_col: if red_win { DIM } else { BLUE },
-            r_total: format!("{r_total:.0}"),
-            b_total: format!("{b_total:.0}"),
-            red_lines: vec![team_line(red, 0, 196.0), team_line(red, 1, 226.0)],
-            blue_lines: vec![team_line(blue, 0, 196.0), team_line(blue, 1, 226.0)],
-            rows,
-        };
-        render(&card.render().context("rendering match card template")?)
+    /// `scored` carries the real breakdown; endgame is folded into teleop.
+    pub fn create_result_image(
+        red: &Alliance,
+        blue: &Alliance,
+        scored: &Scored,
+        title: &str,
+        footer: &str,
+    ) -> Result<Vec<u8>> {
+        match_card(red, blue, scored, title, footer, false)
     }
 
     pub fn create_alliance_image(alliance: &Alliance) -> Result<Vec<u8>> {
@@ -198,6 +166,95 @@ impl ImageGenerator {
         };
         render(&card.render().context("rendering alliance card template")?)
     }
+}
+
+fn match_card(
+    red: &Alliance,
+    blue: &Alliance,
+    scored: &Scored,
+    title: &str,
+    footer: &str,
+    with_endgame: bool,
+) -> Result<Vec<u8>> {
+    let (r, b) = (&scored.red, &scored.blue);
+    let (r_total, b_total) = scored.totals();
+    let winner = scored.winner();
+    let red_win = winner == Some(Winner::Red);
+    let blue_win = winner == Some(Winner::Blue);
+
+    let scale = 360.0
+        / [
+            r.auto,
+            b.auto,
+            r.teleop,
+            b.teleop,
+            r.endgame,
+            b.endgame,
+            r.penalties,
+            b.penalties,
+        ]
+        .into_iter()
+        .fold(1.0_f64, f64::max);
+
+    let rows = if with_endgame {
+        vec![
+            bar_row("AUTO", r.auto, b.auto, RED, BLUE, 386.0, scale),
+            bar_row("TELEOP", r.teleop, b.teleop, RED, BLUE, 432.0, scale),
+            bar_row("ENDGAME", r.endgame, b.endgame, RED, BLUE, 478.0, scale),
+            bar_row(
+                "PENALTIES",
+                b.penalties,
+                r.penalties,
+                BLUE,
+                RED,
+                524.0,
+                scale,
+            ),
+        ]
+    } else {
+        vec![
+            bar_row("AUTO", r.auto, b.auto, RED, BLUE, 396.0, scale),
+            bar_row(
+                "TELEOP + ENDGAME",
+                r.teleop,
+                b.teleop,
+                RED,
+                BLUE,
+                456.0,
+                scale,
+            ),
+            bar_row(
+                "PENALTIES",
+                b.penalties,
+                r.penalties,
+                BLUE,
+                RED,
+                516.0,
+                scale,
+            ),
+        ]
+    };
+
+    let card = MatchCard {
+        title: title.to_owned(),
+        footer: footer.to_owned(),
+        r0: slot_num(red, 0),
+        r1: slot_num(red, 1),
+        b0: slot_num(blue, 0),
+        b1: slot_num(blue, 1),
+        red_win,
+        blue_win,
+        red_stroke: if red_win { RED } else { STROKE },
+        blue_stroke: if blue_win { BLUE } else { STROKE },
+        red_total_col: if blue_win { DIM } else { RED },
+        blue_total_col: if red_win { DIM } else { BLUE },
+        r_total: format!("{r_total:.0}"),
+        b_total: format!("{b_total:.0}"),
+        red_lines: vec![team_line(red, 0, 196.0), team_line(red, 1, 226.0)],
+        blue_lines: vec![team_line(blue, 0, 196.0), team_line(blue, 1, 226.0)],
+        rows,
+    };
+    render(&card.render().context("rendering match card template")?)
 }
 
 fn render(svg: &str) -> Result<Vec<u8>> {
@@ -308,7 +365,7 @@ mod smoke {
     #[test]
     fn render_sample() {
         let red = Alliance::new(
-            Some(team(12345, "Robo Raiders", 22.0, 44.0, 15.0, 5.0)),
+            Some(team(14584, "Pioneer 327", 22.0, 44.0, 15.0, 5.0)),
             Some(team(6789, "Circuit Breakers", 23.0, 44.0, 15.0, 0.0)),
         );
         let blue = Alliance::new(
@@ -318,5 +375,33 @@ mod smoke {
         let png = ImageGenerator::create_match_image(&red, &blue).unwrap();
         assert_eq!(&png[1..4], b"PNG");
         assert!(png.len() > 1000);
+    }
+
+    #[test]
+    fn render_result_sample() {
+        let red = Alliance::new(Some(team(14584, "Pioneer 327", 0.0, 0.0, 0.0, 0.0)), None);
+        let blue = Alliance::new(
+            Some(team(4321, "Gear Grinders", 0.0, 0.0, 0.0, 0.0)),
+            Some(team(9876, "Volt Vipers", 0.0, 0.0, 0.0, 0.0)),
+        );
+        let side = |auto, teleop, penalties| Scores {
+            auto,
+            teleop,
+            penalties,
+            ..Scores::default()
+        };
+        let scored = Scored::new(side(11.0, 11.0, 20.0), side(8.0, 10.0, 0.0));
+        let png = ImageGenerator::create_result_image(
+            &red,
+            &blue,
+            &scored,
+            "QUALIFICATION 1",
+            "Diamondback - Tucson Qualifier",
+        )
+        .unwrap();
+        assert_eq!(&png[1..4], b"PNG");
+        if let Ok(out) = std::env::var("ARES_CARD_OUT") {
+            std::fs::write(out, &png).unwrap();
+        }
     }
 }

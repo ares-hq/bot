@@ -18,7 +18,7 @@ pub async fn run(
         .ok_or_else(|| anyhow::anyhow!("team_number is required"))?;
 
     let Ok(team_number) = raw.parse::<u32>() else {
-        let embed = warning_embed("Warning", "Team number must be numerical.");
+        let embed = warning_embed("Invalid Team Number", "Enter a team number, like 14584.");
         return respond::ephemeral(ctx, interaction, embed).await;
     };
 
@@ -30,7 +30,7 @@ pub async fn run(
             tracing::warn!(team_number, error = %err, "Team lookup failed");
             let embed = error_embed(
                 "Team Not Found",
-                &format!("Could not find team {team_number} in this season's data."),
+                &format!("Couldn't find team {team_number} this season."),
             );
             return respond::edit(ctx, interaction, embed).await;
         }

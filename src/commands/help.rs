@@ -32,33 +32,38 @@ fn build_help_embed(page: usize) -> CreateEmbed {
         .field(
             "/match <red_alliance> [blue_alliance]",
             "Simulate a matchup. Each alliance is two team numbers separated by a space, \
-             for example `12345 6789`. Omit the blue alliance to score the red one on its own.",
+             for example `14584 6789`. Omit the blue alliance to score the red one on its own.",
             false,
         ),
         1 => {
-            base("Favorite teams are shared by everyone in the server and persist across restarts.")
+            base("Favorites and subscriptions are shared by everyone in the server. Only members who can manage channels can change them.")
                 .field(
-                    "/favorite <team_number>",
-                    "Toggle a team: the first call adds it, the next removes it.",
+                    "/favorite [team_number]",
+                    "Follow a team: each of its match results posts in this channel. \
+                     Use it in another channel to move it there. With no number, lists this server's favorites.",
                     false,
                 )
+                .field("/unfavorite <team_number>", "Stop following a team.", false)
                 .field(
-                    "/favorite",
-                    "With no team number, lists every favorite in this server.",
+                    "/subscribe [event_code]",
+                    "Follow an event: every match result posts in this channel. Use it in \
+                     another channel to move it there. With no code, lists this server's events.",
                     false,
                 )
+                .field("/unsubscribe <event_code>", "Stop following an event.", false)
                 .field(
                     "Where favorites show up",
-                    "A favorited team is marked with a star in its /team card.",
+                    "A favorited team gets a star on its /team card. Match results usually post \
+                     within a minute of the official score.",
                     false,
                 )
         }
         _ => base("Reading the numbers.")
             .field(
                 "About OPR",
-                "OPR (Offensive Power Rating) is a least-squares estimate of a team's average \
-                 contribution to its alliance's score. ARES solves it per season for auto, \
-                 teleop, endgame and penalties.",
+                "OPR (Offensive Power Rating) estimates how many points a team adds to its \
+                 alliance's score in an average match. ARES works it out across the season for \
+                 auto, teleop, endgame and penalties.",
                 false,
             )
             .field(

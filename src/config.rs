@@ -1,4 +1,6 @@
 use anyhow::{Context, Result};
+use chrono::{Datelike, Utc};
+use model::prelude::current_season;
 use std::env;
 
 #[derive(Clone, Debug)]
@@ -11,6 +13,8 @@ pub struct Config {
     pub debug_mode: bool,
     /// `None` derives the season from the clock.
     pub season: Option<i32>,
+    /// `None` disables live match cards.
+    pub first_credentials: Option<(String, String)>,
 }
 
 impl Config {
@@ -37,6 +41,10 @@ impl Config {
             .and_then(|s| s.parse().ok())
             .unwrap_or(false);
 
+        let first_credentials = env::var("FIRST_USERNAME")
+            .ok()
+            .zip(env::var("FIRST_PASS").ok());
+
         Ok(Config {
             discord_token,
             supabase_url,
@@ -45,6 +53,14 @@ impl Config {
             dev_channel_ids,
             debug_mode,
             season,
+            first_credentials,
+        })
+    }
+
+    pub fn year(&self) -> i32 {
+        self.season.unwrap_or_else(|| {
+            let now = Utc::now();
+            current_season(now.year(), now.month())
         })
     }
 }

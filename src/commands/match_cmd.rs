@@ -11,7 +11,7 @@ use serenity::all::{
 };
 
 const ALLIANCE_FORMAT: &str = "Each alliance must be exactly 2 team numbers separated by a space, \
-                               for example `12345 6789`.";
+                               for example `14584 6789`.";
 
 fn parse_alliance(value: &str) -> Option<Vec<u32>> {
     let teams: Vec<u32> = value
@@ -27,16 +27,24 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction, store: &TeamSt
         .ok_or_else(|| anyhow::anyhow!("red_alliance is required"))?;
 
     let Some(red_teams) = parse_alliance(red_raw) else {
-        return respond::ephemeral(ctx, interaction, warning_embed("Warning", ALLIANCE_FORMAT))
-            .await;
+        return respond::ephemeral(
+            ctx,
+            interaction,
+            warning_embed("Check Your Teams", ALLIANCE_FORMAT),
+        )
+        .await;
     };
 
     let blue_teams = match option_str(interaction, "blue_alliance").map(parse_alliance) {
         None => None,
         Some(Some(parsed)) => Some(parsed),
         Some(None) => {
-            return respond::ephemeral(ctx, interaction, warning_embed("Warning", ALLIANCE_FORMAT))
-                .await;
+            return respond::ephemeral(
+                ctx,
+                interaction,
+                warning_embed("Check Your Teams", ALLIANCE_FORMAT),
+            )
+            .await;
         }
     };
 
@@ -46,7 +54,10 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction, store: &TeamSt
         Ok(match_data) => match_data,
         Err(err) => {
             tracing::error!(error = %err, "Could not assemble match");
-            let embed = error_embed("Match Error", "Could not look those teams up.");
+            let embed = error_embed(
+                "Teams Unavailable",
+                "Couldn't look those teams up right now. Please try again in a moment.",
+            );
             return respond::edit(ctx, interaction, embed).await;
         }
     };
@@ -69,7 +80,10 @@ pub async fn run(ctx: &Context, interaction: &CommandInteraction, store: &TeamSt
         Ok(bytes) => bytes,
         Err(err) => {
             tracing::error!(error = %err, "Could not render match card");
-            let embed = error_embed("Render Failed", "Could not draw the match card.");
+            let embed = error_embed(
+                "Something Went Wrong",
+                "Couldn't make the match card. Please try again in a moment.",
+            );
             return respond::edit(ctx, interaction, embed).await;
         }
     };
@@ -138,20 +152,20 @@ mod tests {
 
     #[test]
     fn a_pair_of_numbers_parses() {
-        assert_eq!(parse_alliance("12345 6789"), Some(vec![12345, 6789]));
-        assert_eq!(parse_alliance("  12345   6789  "), Some(vec![12345, 6789]));
+        assert_eq!(parse_alliance("14584 6789"), Some(vec![14584, 6789]));
+        assert_eq!(parse_alliance("  14584   6789  "), Some(vec![14584, 6789]));
     }
 
     #[test]
     fn the_wrong_count_is_rejected() {
-        assert_eq!(parse_alliance("12345"), None);
+        assert_eq!(parse_alliance("14584"), None);
         assert_eq!(parse_alliance("1 2 3"), None);
         assert_eq!(parse_alliance(""), None);
     }
 
     #[test]
     fn a_stray_word_is_rejected_rather_than_skipped() {
-        assert_eq!(parse_alliance("12345 oops 6789"), None);
-        assert_eq!(parse_alliance("12345 -1"), None);
+        assert_eq!(parse_alliance("14584 oops 6789"), None);
+        assert_eq!(parse_alliance("14584 -1"), None);
     }
 }

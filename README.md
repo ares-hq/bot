@@ -14,9 +14,7 @@
      \/__/         \/__/         \/__/         \/__/                  \/__/         \/__/           \/__/  
 ```
 
-FTC team statistics and match simulation as a Discord bot. Reads the `season_<year>` table
-that the [pipeline](https://github.com/ares-hq/db) writes; the two agree on table names
-through [`model::tables`](https://github.com/ares-hq/model).
+FTC team stats, match predictions and live match results, right in your Discord server.
 
 ## Commands
 
@@ -28,7 +26,7 @@ in this server is marked with a star.
 ### `/match <red_alliance> [blue_alliance]`
 
 Simulates a matchup and renders a scorecard. Each alliance is **two team numbers separated by
-a space** — `/match "12345 6789" "4321 9876"`. Omit the blue alliance to score the red one on
+a space** — `/match "14584 6789" "4321 9876"`. Omit the blue alliance to score the red one on
 its own, which renders an alliance card instead.
 
 Totals follow the real scoreboard: each alliance's auto, teleop and endgame, plus the fouls
@@ -36,105 +34,46 @@ its opponent committed.
 
 ### `/favorite [team_number]`
 
-With a team number, toggles it — the first call adds, the next removes. With no argument,
-lists the server's favourites. Favourites are per-server, shared by everyone in it, and
-persist across restarts.
+With a team number, favourites it and posts a result card in that channel for every match the
+team plays. Run it in another channel to move its cards there. With no argument, lists the
+server's favourites and where each one posts.
+
+### `/unfavorite <team_number>`
+
+Removes a favourite from any channel, suggesting the server's favourites as you type.
+
+### `/subscribe [event_code]`
+
+Posts a result card in that channel for every match at the event. Run it in another channel to
+move it. With no argument, lists the server's subscriptions. A subscription is dropped once
+its event is over.
+
+### `/unsubscribe <event_code>`
+
+Stops an event from any channel, suggesting the server's events as you type.
+
+Changing favourites or subscriptions needs **Manage Channels**, and the bot must be able to
+send messages, embed links and attach files in the channel.
 
 ### `/help`
 
 Three pages of command reference and a note on how to read OPR.
 
-## Setup
-
-### 1. Clone
-
-Inside the monorepo the crate is a workspace member:
-
-```bash
-git clone --recurse-submodules https://github.com/ares-hq/ares.git
-cd ares
-```
-
-Standalone also works — `model` then resolves from its published branch:
-
-```bash
-git clone https://github.com/ares-hq/bot.git && cd bot
-```
-
-### 2. Create the favourites table
-
-Once per Supabase project:
-
-```sql
-create table favorites (
-  guild_id    text    not null,
-  team_number integer not null,
-  primary key (guild_id, team_number)
-);
-```
-
-`guild_id` is text because Discord snowflakes do not round-trip through JSON integers.
-
-### 3. Configure
-
-Create `.env` (the monorepo keeps one at its root, shared with the pipeline):
-
-```env
-DISCORD_TOKEN=your-bot-token
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anon-key
-
-# Optional
-SEASON=2025            # pin the season table; defaults to the current season
-DEBUG_MODE=false       # register to one guild and refuse other channels
-DEV_SERVER_ID1=...     # guild for debug-mode command registration
-DEV_CHANNEL_ID1=...    # channels debug mode will answer in
-DEV_CHANNEL_ID2=...
-```
-
-`SEASON` exists so the bot and the pipeline can be pinned to the same year. Left unset, both
-derive it from the clock, rolling over in August.
-
-Debug mode registers commands to `DEV_SERVER_ID1` — which propagates instantly, unlike the
-global registration used in production — and declines to answer outside the listed channels.
-
-### 4. Run
-
-```bash
-cargo run --release --bin bot
-```
-
-## Design notes
-
-- **Team reads are cached for 60 seconds.** The pipeline rewrites the season table every few
-  minutes, so anything fresher than that is reused. A full `/match` is a single
-  `teamNumber=in.(…)` query, not one request per team.
-- **Cards are SVG.** [askama](https://github.com/djc/askama) templates in `templates/` are
-  rendered by [resvg](https://github.com/linebender/resvg) into PNG, on a blocking thread so
-  rasterisation never stalls the gateway. Fonts are embedded with `include_bytes!` and parsed
-  once.
-- **Commands are one list.** `commands::Command` drives both registration and dispatch, so a
-  new command cannot be registered without also being handled.
-
-## Deployment
-
-Fonts, templates and TLS roots are compiled into the binary, so a deploy is one static
-file. CI builds it; the server runs it under systemd with `Restart=always` and picks up
-new releases on an hourly timer. Setup in [`deploy/README.md`](../deploy/README.md).
-
-```bash
-systemctl status ares-bot.service
-journalctl -u ares-bot.service -f
-```
-
 ## Version history
+
+### v3.1.0
+
+- Servers can favorite several teams, and each team's match results post in the channel it was set in
+- `/subscribe` posts every match result card from an event
+- `/unfavorite` and `/unsubscribe` work from any channel and suggest what the server follows
+- Match results post shortly after each score is official
 
 ### v3.0.0
 
-- Rewritten in Rust (was Python)
-- Server favourites persist in Supabase instead of vanishing on restart
-- Match and alliance cards rendered from SVG templates
-- Reads the shared `season_<year>` tables through the `model` crate
+- Rebuilt for speed and reliability
+- Favourites are saved and no longer reset when the bot restarts
+- Sharper match and alliance cards
+- Team stats match the ARES website
 
 ### v2.0.0
 

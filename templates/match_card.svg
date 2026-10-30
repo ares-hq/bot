@@ -6,7 +6,7 @@
 </defs>
 <rect x="0" y="0" width="1000" height="600" fill="url(#bg)"/>
 <rect x="1" y="1" width="998" height="598" rx="15" fill="none" stroke="#2A2E36"/>
-<text x="500" y="46" text-anchor="middle" font-weight="700" font-size="26" letter-spacing="4" fill="#EDEFF2">SIMULATED MATCH</text>
+<text x="500" y="46" text-anchor="middle" font-weight="700" font-size="26" letter-spacing="4" fill="#EDEFF2">{{ title }}</text>
 <text x="500" y="74" text-anchor="middle" font-family="Roboto" font-weight="400" font-size="15" fill="#8A8F98">{{ r0 }} &amp; {{ r1 }}   vs   {{ b0 }} &amp; {{ b1 }}</text>
 <line x1="60" y1="92" x2="940" y2="92" stroke="#282C34"/>
 {% if red_win %}<rect x="26" y="112" width="452" height="196" rx="14" fill="#FF4B55" opacity=".10"/>{% endif %}
@@ -36,5 +36,5 @@
 {% endfor %}<line x1="500" y1="360" x2="500" y2="546" stroke="#2A2E36"/>
 <line x1="60" y1="566" x2="940" y2="566" stroke="#282C34"/>
 <text x="60" y="588" font-weight="700" font-size="15" letter-spacing="3" fill="#C9CCD2">ARES</text>
-<text x="940" y="588" text-anchor="end" font-family="Roboto" font-weight="400" font-size="12.5" fill="#6E7480">Estimated from OPR</text>
+<text x="940" y="588" text-anchor="end" font-family="Roboto" font-weight="400" font-size="12.5" fill="#6E7480">{{ footer }}</text>
 </svg>

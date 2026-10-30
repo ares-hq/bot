@@ -4,23 +4,31 @@ mod commands;
 mod config;
 mod favorites;
 mod image_generator;
+mod live;
 mod match_data;
+mod services;
+mod store;
+mod subscriptions;
 mod team_store;
 
 use anyhow::Result;
 use serenity::all::{Client, Context, EventHandler, GatewayIntents, Interaction, Ready};
 use std::sync::Arc;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use bot_state::error_embed;
 use commands::{Command, respond};
 use config::Config;
 use favorites::FavoritesManager;
+use live::{Live, LiveHandle};
+use model::first::{self, ApiClient};
+use model::prelude::Supabase;
+use services::Services;
+use subscriptions::Subscriptions;
 use team_store::TeamStore;
 
 struct Handler {
-    teams: Arc<TeamStore>,
-    favorites: Arc<FavoritesManager>,
+    services: Arc<Services>,
     config: Arc<Config>,
 }
 
@@ -63,8 +71,8 @@ impl EventHandler for Handler {
 
                 if !allowed {
                     let embed = error_embed(
-                        "Debug Mode",
-                        "Bot is in debug mode. Commands are restricted to specific channels.",
+                        "Not Available Here",
+                        "ARES is being updated and only answers in certain channels right now.",
                     );
                     let _ = respond::ephemeral(&ctx, command, embed).await;
                     return;
@@ -77,8 +85,17 @@ impl EventHandler for Handler {
                 return;
             };
 
-            if let Err(e) = name.run(&ctx, command, &self.teams, &self.favorites).await {
+            if let Err(e) = name.run(&ctx, command, &self.services).await {
                 error!("Error handling command '{}': {}", command.data.name, e);
+            }
+            return;
+        }
+
+        if let Interaction::Autocomplete(request) = &interaction {
+            if let Some(command) = Command::from_name(&request.data.name)
+                && let Err(e) = command.autocomplete(&ctx, request, &self.services).await
+            {
+                error!("Error suggesting for '{}': {}", request.data.name, e);
             }
             return;
         }
@@ -102,26 +119,43 @@ async fn main() -> Result<()> {
     let config = Config::from_env()?;
     info!("Configuration loaded");
 
-    let teams = TeamStore::new(
-        &config.supabase_url,
-        config.supabase_key.clone(),
-        config.season,
-    );
-    let favorites = FavoritesManager::new(&config.supabase_url, config.supabase_key.clone());
+    let season = config.year();
+    let first = match &config.first_credentials {
+        Some((user, pass)) => Some(ApiClient::new(first::BASE_URL, user.clone(), pass.clone())?),
+        None => {
+            warn!("FIRST_USERNAME/FIRST_PASS unset; live match cards disabled");
+            None
+        }
+    };
+    let db = Supabase::new(&config.supabase_url, config.supabase_key.clone());
+    let (live, inbox) = LiveHandle::channel();
+    let services = Arc::new(Services {
+        teams: Arc::new(TeamStore::new(db.clone(), season)),
+        favorites: Arc::new(FavoritesManager::new(db.clone())),
+        subscriptions: Arc::new(Subscriptions::new(db.clone(), season)),
+        first: first.clone(),
+        season,
+        live,
+    });
 
     info!("Services initialized");
 
     let intents = GatewayIntents::GUILDS | GatewayIntents::DIRECT_MESSAGES;
 
     let handler = Handler {
-        teams: Arc::new(teams),
-        favorites: Arc::new(favorites),
+        services: services.clone(),
         config: Arc::new(config.clone()),
     };
 
     let mut client = Client::builder(&config.discord_token, intents)
         .event_handler(handler)
         .await?;
+
+    if let Some(first) = first {
+        let live = Live::new(&services, first, db, client.http.clone(), inbox);
+        tokio::spawn(live.run());
+        info!("Live match cards enabled for season {season}");
+    }
 
     info!("Starting Discord client...");
     client.start().await?;
